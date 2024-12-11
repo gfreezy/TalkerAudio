@@ -1,5 +1,5 @@
 {
-  "originHash" : "c706748a8db01c6a56f8a655f8c9765b9dddaa7f147be49b538099f1547452e5",
+  "originHash" : "135d966e5d5f8c3363ca4c48a7c54372039f3b029f0c8512540b85bb8d9db6e4",
   "pins" : [
     {
       "identity" : "asyncobjects",
@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/groue/Semaphore",
       "state" : {
-        "branch" : "b92ec84",
-        "revision" : "b92ec84502425e11a72a93852fe9427f78dce81a"
+        "revision" : "2543679282aa6f6c8ecf2138acd613ed20790bc2",
+        "version" : "0.1.0"
       }
     },
     {
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/gfreezy/StreamAudioPlayer",
       "state" : {
-        "branch" : "main",
-        "revision" : "a0adb2e1a0e8c2ed9308498c57d8e3a388037cb3"
+        "revision" : "3b0bf56b057157bcfaa3d21209b1f1e3db4c9735",
+        "version" : "20241212.0.3"
       }
     },
     {
