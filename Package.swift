@@ -12,20 +12,20 @@ let package = Package(
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "TalkerAudio",
-            targets: ["TalkerAudio"]),
+            targets: ["TalkerAudio"])
     ],
     dependencies: [
-        .package(url: "https://github.com/gfreezy/talkercommon", exact: "20241210.0.1"),
+        .package(url: "https://github.com/gfreezy/talkercommon", exact: "20241210.0.2"),
         .package(url: "https://github.com/gfreezy/StreamAudioPlayer", branch: "main"),
         .package(url: "https://github.com/SwiftyLab/AsyncObjects", from: "2.1.0"),
-        .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0")
+        .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
-           name: "TalkerAudioObjC",
-           dependencies: ["MicrosoftCognitiveServicesSpeech"]
+            name: "TalkerAudioObjC",
+            dependencies: ["MicrosoftCognitiveServicesSpeech"]
         ),
         .binaryTarget(
             name: "MicrosoftCognitiveServicesSpeech",
@@ -39,7 +39,7 @@ let package = Package(
                 .product(name: "StreamAudio", package: "StreamAudioPlayer"),
                 "AsyncObjects",
                 .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
-                .target(name: "MicrosoftCognitiveServicesSpeech")
+                .target(name: "MicrosoftCognitiveServicesSpeech"),
             ]
         ),
         .testTarget(

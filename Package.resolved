@@ -1,5 +1,5 @@
 {
-  "originHash" : "2f0324c41bb4d71143e5311b5491162d4657e66496e05193e602b192f823244b",
+  "originHash" : "c706748a8db01c6a56f8a655f8c9765b9dddaa7f147be49b538099f1547452e5",
   "pins" : [
     {
       "identity" : "asyncobjects",
@@ -78,8 +78,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/gfreezy/talkercommon",
       "state" : {
-        "revision" : "d9771dac4e51a0db25ef1c040afbec8ae1aec8a7",
-        "version" : "20241210.0.1"
+        "revision" : "75f58e13fd6777cdc87b67fe264ef8a314b5b1d4",
+        "version" : "20241210.0.2"
       }
     },
     {
