@@ -6,16 +6,17 @@
 //
 
 import AVFoundation
+import AsyncObjects
+import CryptoKit
 import Foundation
 import OSLog
 import StreamAudio
 import SwiftUI
-import CryptoKit
 import TalkerCommon
-import AsyncObjects
 
-
-public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDelegate, @unchecked Sendable {
+public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDelegate, @unchecked
+    Sendable
+{
     let language: Lock<String> = Lock("en-US")
     let reference: Lock<String?> = Lock(nil)
     let pronounceInfoRequired: Lock<Bool> = Lock(false)
@@ -27,80 +28,84 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
     let url: String
     let extraHeaders: [String: String]
     let uniqueId: String
-    
+
     public init(url: String, extraHeaders: [String: String] = [:]) {
         self.url = url
         self.extraHeaders = extraHeaders
         self.uniqueId = UUID().uuidString
         super.init()
     }
-    
+
     public func recognizedResult() async throws -> SpeechRecognizerResult {
         let response = try await recognizedFinalResult.wait()
         return SpeechRecognizerResult(text: response.data, pronounceInfo: response.accuracy)
     }
-    
-    public func startRecognition(language: String, reference: String?, pronounceInfoRequired: Bool) async throws {
+
+    public func startRecognition(language: String, reference: String?, pronounceInfoRequired: Bool)
+        async throws
+    {
         self.language.value = language
         self.reference.value = reference
         self.pronounceInfoRequired.value = pronounceInfoRequired
         try await startSendAudioTask()
     }
-    
+
     public func cancelRecoginition() throws {
         sendAudioTask?.cancel()
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
     }
-    
+
     /// websocket reads data from this function, nil means no more data, empty data means sleep and retry.
     func readData() -> Data? {
         return nil
     }
-    
+
     func startSendAudioTask() async throws {
         connectWebsocket()
         try await websocketConnected.wait()
-        
+
         sendAudioTask = Task {
             defer {
                 if !self.recognizedFinalResult.isFinished {
-                    self.recognizedFinalResult.finish(throwing: MessageError("Audio task unknown error exit"))
+                    self.recognizedFinalResult.finish(
+                        throwing: MessageError(
+                            "Audio task unknown error exit, uniqueId: \(uniqueId)"))
                 }
             }
-            
+
             do {
                 try await withThrowingTaskGroup(of: Void.self) { group in
-                    infoLog("wait for started response")
+                    infoLog("wait for started response, uniqueId: \(uniqueId)")
                     try await self.waitForStartedResponse()
-                    
+
                     group.addTask {
                         try await self.readResultFromWebSocket()
                     }
-                    
+
                     group.addTask { [self] in
                         while !Task.isCancelled {
                             guard let webSocketTask else {
-                                throw MessageError("No websocket")
+                                throw MessageError("No websocket, uniqueId: \(uniqueId)")
                             }
-                            
+
                             if let data = readData() {
                                 if data.isEmpty {
                                     //                                infoLog("no more data, sleep")
                                     try await Task.sleep(for: .milliseconds(20))
                                     continue
                                 }
-//                                debugLog("send audio bytes: \(data.count), offset: \(String(describing: offset))")
+                                //                                debugLog("send audio bytes: \(data.count), offset: \(String(describing: offset))")
                                 try await webSocketTask.send(.data(data))
                             } else {
                                 try await sendAudioFinish()
-                                infoLog("send audo finish data")
+                                infoLog("send audo finish data, uniqueId: \(uniqueId)")
                                 return
                             }
                         }
                     }
-                    
+
                     for try await _ in group {
-                        
+
                     }
                 }
             } catch {
@@ -115,9 +120,11 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
         guard webSocketTask == nil else {
             return
         }
-        let url = buildUrl(url: url, lang: language.value, reference: reference.value, uniqueId: self.uniqueId, pronounceInfoRequired: pronounceInfoRequired.value)
+        let url = buildUrl(
+            url: url, lang: language.value, reference: reference.value, uniqueId: self.uniqueId,
+            pronounceInfoRequired: pronounceInfoRequired.value)
         var request = URLRequest(url: URL(string: url)!)
-        
+
         for (key, value) in extraHeaders {
             request.addValue(value, forHTTPHeaderField: key)
         }
@@ -126,7 +133,7 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
         self.webSocketTask = webSocketTask
         webSocketTask.resume()
     }
-    
+
     func readResultFromWebSocket() async throws {
         guard let webSocketTask else {
             return
@@ -135,18 +142,23 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
         do {
             while webSocketTask.closeCode == .invalid && !Task.isCancelled {
                 guard let msg = try await readMessage() else {
-                    recognizedFinalResult.finish(throwing: MessageError("Connection closed"))
+                    recognizedFinalResult.finish(
+                        throwing: MessageError("Connection closed, uniqueId: \(uniqueId)"))
                     break
                 }
-                
+
                 switch msg.action {
                 case .started:
                     fatalError()
                 case .error:
-                    infoLog("read recognization error: \(String(describing: msg.desc))")
+                    infoLog(
+                        "read recognization error: \(String(describing: msg.desc)), uniqueId: \(uniqueId)"
+                    )
                     throw MessageError(msg.desc ?? "")
                 case .result:
-                    infoLog("read final recognization message: \(String(describing: msg.data))")
+                    infoLog(
+                        "read final recognization message: \(String(describing: msg.data)), uniqueId: \(uniqueId)"
+                    )
                     recognizedFinalResult.finish(msg)
                 }
             }
@@ -165,9 +177,9 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
         } catch {
             let e = error as NSError
             if e.domain == NSPOSIXErrorDomain && e.code == 57 {
-                infoLog("Connection closed.")
+                infoLog("Connection closed, uniqueId: \(uniqueId)")
             } else {
-                errorLog("receive message error: \(error)")
+                errorLog("receive message error: \(error), uniqueId: \(uniqueId)")
             }
             websocketClosed.value = true
             return nil
@@ -176,72 +188,79 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
         let resp: ResponseData
         switch message {
         case .string(let data):
-            infoLog("Received data: \(data)")
+            infoLog("Received data: \(data), uniqueId: \(uniqueId)")
             resp = try JSONDecoder().decode(ResponseData.self, from: data.data(using: .utf8)!)
         case .data(_):
-            throw MessageError("Unexpected binary message")
+            throw MessageError("Unexpected binary message, uniqueId: \(uniqueId)")
         @unknown default:
             fatalError()
         }
-        infoLog("receive new message: \(String(describing: resp))")
+        infoLog("receive new message: \(String(describing: resp)), uniqueId: \(uniqueId)")
         return resp
     }
-    
+
     private func waitForStartedResponse() async throws {
         let message = try await readMessage()
         guard let message, message.action == .started else {
-            throw MessageError("Unexpected message")
+            throw MessageError("Unexpected message, uniqueId: \(uniqueId)")
         }
-        infoLog("started message received")
+        infoLog("started message received, uniqueId: \(uniqueId)")
     }
-    
+
     func sendAudioFinish() async throws {
         guard let webSocketTask, webSocketTask.closeCode == .invalid else {
-            throw MessageError("Websocket not available")
+            throw MessageError("Websocket not available, uniqueId: \(uniqueId)")
         }
         try await webSocketTask.send(.data("{\"end\": true}".data(using: .utf8)!))
     }
-    
-    
+
     public func urlSession(
-        _ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?
+        _ session: URLSession, webSocketTask: URLSessionWebSocketTask,
+        didOpenWithProtocol protocol: String?
     ) {
         websocketConnected.finish(())
-        infoLog("websocket connected")
+        infoLog("websocket connected, uniqueId: \(uniqueId)")
     }
 
-    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+    public func urlSession(
+        _ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?
+    ) {
         if !websocketConnected.isFinished {
-            websocketConnected.finish(throwing: MessageError("error connect: \(error.debugDescription)"))
+            websocketConnected.finish(
+                throwing: MessageError(
+                    "error connect: \(error.debugDescription), uniqueId: \(uniqueId)"))
         }
     }
-    
+
     public func urlSession(
         _ session: URLSession, webSocketTask: URLSessionWebSocketTask,
         didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?
     ) {
         if !websocketConnected.isFinished {
-            websocketConnected.finish(throwing: MessageError("error connect"))
+            websocketConnected.finish(
+                throwing: MessageError("error connect, uniqueId: \(uniqueId)"))
         }
         websocketClosed.value = true
-        infoLog("websocket close: \(closeCode.rawValue)")
+        infoLog("websocket close: \(closeCode.rawValue), uniqueId: \(uniqueId) reason: \(reason)")
     }
-    
+
     deinit {
         self.webSocketTask?.cancel()
         self.sendAudioTask?.cancel()
     }
 }
 
-public final class FirstPartyWebsocketAudioFileRecognizer: BaseFirstPartyWebsocketRecognizer, FileSpeechRecognizer, @unchecked Sendable {
+public final class FirstPartyWebsocketAudioFileRecognizer: BaseFirstPartyWebsocketRecognizer,
+    FileSpeechRecognizer, @unchecked Sendable
+{
     let audioFile: URL
     let isAllDataSent = Lock(false)
-    
-    public init(url: String, audioFile: URL, extraHeaders: [String : String] = [:]) {
+
+    public init(url: String, audioFile: URL, extraHeaders: [String: String] = [:]) {
         self.audioFile = audioFile
         super.init(url: url, extraHeaders: extraHeaders)
     }
-    
+
     override func readData() -> Data? {
         if isAllDataSent.value {
             return nil
@@ -249,19 +268,23 @@ public final class FirstPartyWebsocketAudioFileRecognizer: BaseFirstPartyWebsock
         isAllDataSent.value = true
         do {
             let buffer = try readAVAudioPCMBufferFromWavFile(fileURL: audioFile)
-            let data = buffer.int16ChannelData!.pointee.withMemoryRebound(to: UInt8.self, capacity: Int(buffer.frameLength) * 2) {
+            let data = buffer.int16ChannelData!.pointee.withMemoryRebound(
+                to: UInt8.self, capacity: Int(buffer.frameLength) * 2
+            ) {
                 Data(bytes: $0, count: Int(buffer.frameLength * 2))
             }
             return data
         } catch {
-            errorLog("read audio file error: \(error)")
+            errorLog("read audio file error: \(error), uniqueId: \(uniqueId)")
         }
 
         return nil
     }
 }
 
-public final class FirstPartyWebsocketStreamRecognizer: BaseFirstPartyWebsocketRecognizer, StreamSpeechRecognizer, @unchecked Sendable {
+public final class FirstPartyWebsocketStreamRecognizer: BaseFirstPartyWebsocketRecognizer,
+    StreamSpeechRecognizer, @unchecked Sendable
+{
     private let recorder = StreamAudioRecorder()
     private let streamAudioBuffer = StreamAudioBuffer()
     private let totalSentBytes: Lock<Int> = Lock(0)
@@ -273,7 +296,7 @@ public final class FirstPartyWebsocketStreamRecognizer: BaseFirstPartyWebsocketR
     }()
     public nonisolated(unsafe) var delegate: (any StreamSpeechRecognizerDelegate)?
     private nonisolated(unsafe) var offset = StreamIndexOffset(index: 0, offset: 0)
-    
+
     public override init(url: String, extraHeaders: [String: String] = [:]) {
         super.init(url: url, extraHeaders: extraHeaders)
         setup()
@@ -295,11 +318,14 @@ public final class FirstPartyWebsocketStreamRecognizer: BaseFirstPartyWebsocketR
         }
     }
 
-    public func startRecordingAndRecognition(language: String, reference: String?, pronounceInfoRequired: Bool) async throws {
+    public func startRecordingAndRecognition(
+        language: String, reference: String?, pronounceInfoRequired: Bool
+    ) async throws {
         try recorder.start()
-        try await super.startRecognition(language: language, reference: reference, pronounceInfoRequired: pronounceInfoRequired)
+        try await super.startRecognition(
+            language: language, reference: reference, pronounceInfoRequired: pronounceInfoRequired)
     }
-    
+
     public func stopRecordingAndCancelRecoginition() throws {
         try stopRecording()
         try cancelRecoginition()
@@ -309,16 +335,18 @@ public final class FirstPartyWebsocketStreamRecognizer: BaseFirstPartyWebsocketR
         try recorder.stop()
         streamAudioBuffer.finishStream()
         if !isRecordingStopped.value {
-            infoLog("stop Recording, recorded bytes: \(streamAudioBuffer.totalBytes)")
+            infoLog(
+                "stop Recording, recorded bytes: \(streamAudioBuffer.totalBytes), uniqueId: \(uniqueId)"
+            )
         }
         isRecordingStopped.value = true
         queue.cancelAllOperations()
     }
-    
+
     public func saveAudioToFile(_ name: String?) throws -> URL {
         return try saveAudioBufferToDisk(name: name ?? uniqueId, buf: streamAudioBuffer)
     }
-    
+
     override func readData() -> Data? {
         let data = streamAudioBuffer.subrangeBytes(offset)
         if let data {
@@ -339,28 +367,32 @@ struct ResponseData: Decodable {
     var data: String
     var desc: String?
     var accuracy: PronounceInfo?
-    
+
     static func createEmpty() -> Self {
         return ResponseData(action: .error, data: "")
     }
 }
 
-fileprivate func buildUrl(url: String, lang: String, reference: String?, uniqueId: String, pronounceInfoRequired: Bool) -> String {
+private func buildUrl(
+    url: String, lang: String, reference: String?, uniqueId: String, pronounceInfoRequired: Bool
+) -> String {
     let ts = String(Int(Date().timeIntervalSince1970))
     var components = URLComponents()
     var queryItems: [URLQueryItem] = [
         URLQueryItem(name: "lang", value: lang),
         URLQueryItem(name: "ts", value: ts),
         URLQueryItem(name: "unique_id", value: uniqueId),
-        URLQueryItem(name: "pronounce_info_required", value: pronounceInfoRequired ? "true" : "false")
+        URLQueryItem(
+            name: "pronounce_info_required", value: pronounceInfoRequired ? "true" : "false"),
     ]
-    
+
     if let reference, !reference.isEmpty {
         queryItems.append(URLQueryItem(name: "reference", value: reference))
     }
     components.queryItems = queryItems
     let url = "\(url)/speechtotext"
-    infoLog("websocket url: \(url)")
     let query = components.url?.query ?? ""
-    return "\(url)?\(query)"
+    let fullUrl = "\(url)?\(query)"
+    infoLog("websocket url: \(fullUrl)")
+    return fullUrl
 }
