@@ -15,8 +15,8 @@ let package = Package(
             targets: ["TalkerAudio"])
     ],
     dependencies: [
-        .package(url: "https://github.com/gfreezy/talkercommon", from: "1.0.0"),
-        .package(url: "https://github.com/gfreezy/StreamAudioPlayer", from: "1.0.0"),
+        .package(url: "https://github.com/gfreezy/talkercommon", from: "20241210.0.2"),
+        .package(url: "https://github.com/gfreezy/StreamAudioPlayer", from: "20241212.0.3"),
         .package(url: "https://github.com/SwiftyLab/AsyncObjects", from: "2.1.0"),
         .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
     ],
