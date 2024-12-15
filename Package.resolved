@@ -1,5 +1,5 @@
 {
-  "originHash" : "135d966e5d5f8c3363ca4c48a7c54372039f3b029f0c8512540b85bb8d9db6e4",
+  "originHash" : "094a760f2f23c97056ecdb8eab77965b9efe11fd451f34e33b70121b624704e2",
   "pins" : [
     {
       "identity" : "asyncobjects",
@@ -43,7 +43,7 @@
       "location" : "https://github.com/gfreezy/StreamAudioPlayer",
       "state" : {
         "revision" : "3b0bf56b057157bcfaa3d21209b1f1e3db4c9735",
-        "version" : "20241212.0.3"
+        "version" : "1.0.0"
       }
     },
     {
@@ -79,7 +79,7 @@
       "location" : "https://github.com/gfreezy/talkercommon",
       "state" : {
         "revision" : "75f58e13fd6777cdc87b67fe264ef8a314b5b1d4",
-        "version" : "20241210.0.2"
+        "version" : "1.0.0"
       }
     },
     {
