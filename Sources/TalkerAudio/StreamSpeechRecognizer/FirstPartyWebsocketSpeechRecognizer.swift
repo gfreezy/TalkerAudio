@@ -241,7 +241,7 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
                 throwing: MessageError("error connect, uniqueId: \(uniqueId)"))
         }
         websocketClosed.value = true
-        infoLog("websocket close: \(closeCode.rawValue), uniqueId: \(uniqueId) reason: \(reason)")
+        infoLog("websocket close: \(closeCode.rawValue), uniqueId: \(uniqueId) reason: \(String(describing: reason))")
     }
 
     deinit {
@@ -324,6 +324,7 @@ public final class FirstPartyWebsocketStreamRecognizer: BaseFirstPartyWebsocketR
         try recorder.start()
         try await super.startRecognition(
             language: language, reference: reference, pronounceInfoRequired: pronounceInfoRequired)
+        isRecordingStopped.value = false
     }
 
     public func stopRecordingAndCancelRecoginition() throws {
