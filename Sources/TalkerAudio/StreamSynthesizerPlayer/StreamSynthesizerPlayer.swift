@@ -24,19 +24,27 @@ public enum StreamSynthesizerPlayerError: String, LocalizedError {
 
 @MainActor
 public class StreamSynthesizerPlayer {
-//    private var synthesizerPlayers: [StreamSynthesizerProtocol] = []
+    //    private var synthesizerPlayers: [StreamSynthesizerProtocol] = []
     private let finished = OneShotChannel()
     private var allPlayers: [any StreamSynthesizerProtocol & Sendable] = []
     private var task: Task<(), Error>? = nil
-    private let newPlayerFunc: @Sendable (_ text: String, _ voiceId: String, _ style: String, _ role: String) -> any StreamSynthesizerProtocol & Sendable
+    private let newPlayerFunc:
+        @Sendable (_ text: String, _ voiceId: String, _ style: String, _ role: String) ->
+            any StreamSynthesizerProtocol & Sendable
     public private(set) var isPlaying: Bool = false
 
-    public init(newPlayer: @Sendable @escaping (_ text: String, _ voiceId: String, _ style: String, _ role: String) -> StreamSynthesizerProtocol) {
+    public init(
+        newPlayer: @Sendable @escaping (
+            _ text: String, _ voiceId: String, _ style: String, _ role: String
+        ) -> StreamSynthesizerProtocol
+    ) {
         self.newPlayerFunc = newPlayer
     }
- 
+
     @MainActor
-    public func synthesize(text: String, saveTo: String?, voiceId: String, style: String, role: String) async throws {
+    public func synthesize(
+        text: String, saveTo: String?, voiceId: String, style: String, role: String
+    ) async throws {
         let tokenizor = Tokenizor()
         let sentences = tokenizor.splitToSentences(text, maxChars: 200)
         let stream = AsyncThrowingStream { cont in
@@ -45,7 +53,8 @@ public class StreamSynthesizerPlayer {
             }
             cont.finish()
         }
-        try await streamSynthesize(textStream: stream, saveTo: saveTo, voiceId: voiceId, style: style, role: role)
+        try await streamSynthesize(
+            textStream: stream, saveTo: saveTo, voiceId: voiceId, style: style, role: role)
     }
 
     @MainActor
@@ -105,11 +114,12 @@ public class StreamSynthesizerPlayer {
             let mp3Files = allPlayers.map { player in
                 player.cachePath()
             }
-            let outputMp3File = buildURLForFile(named: saveTo, inDirectory: "audio")
+            let outputMp3File = buildURLForAudio(named: saveTo)
             infoLog("will save to \(outputMp3File)")
             do {
                 try FileManager.default.createDirectory(
-                    at: outputMp3File.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
+                    at: outputMp3File.deletingLastPathComponent(),
+                    withIntermediateDirectories: true, attributes: nil)
             } catch {
                 errorLog("Error creating directory: \(error.localizedDescription)")
                 throw error

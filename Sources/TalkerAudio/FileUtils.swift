@@ -1,9 +1,10 @@
-
 import AVFoundation
 import Foundation
 import TalkerCommon
 
-public func saveData(_ data: Data, toFileNamed fileName: String, inDirectory directoryName: String) -> URL? {
+public func saveData(_ data: Data, toFileNamed fileName: String, inDirectory directoryName: String)
+    -> URL?
+{
     let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         .first!
     let directoryURL = documentsDirectory.appendingPathComponent(directoryName)
@@ -25,12 +26,18 @@ public func saveData(_ data: Data, toFileNamed fileName: String, inDirectory dir
     }
 }
 
-public func buildURLForFile(named fileName: String, inDirectory directoryName: String, extension: String = "wav") -> URL {
+public func buildURLForFile(
+    named fileName: String, inDirectory directoryName: String, extension: String = "wav"
+) -> URL {
     let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         .first!
     let directoryURL = documentsDirectory.appendingPathComponent(directoryName)
     let fileURL = directoryURL.appendingPathComponent("\(fileName).\(`extension`)")
     return fileURL
+}
+
+public func buildURLForAudio(named fileName: String, extension: String = "wav") -> URL {
+    buildURLForFile(named: fileName, inDirectory: "audio", extension: `extension`)
 }
 
 enum SaveAudioError: String, LocalizedError {
@@ -47,7 +54,7 @@ public func saveAudioBufferToDisk(name: String, buf: StreamAudioBuffer) throws -
 }
 
 public func saveAudioBufferToDisk(name: String, buf: AVAudioPCMBuffer) throws -> URL {
-    let url = buildURLForFile(named: name, inDirectory: "audio")
+    let url = buildURLForAudio(named: name)
     do {
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
@@ -60,7 +67,6 @@ public func saveAudioBufferToDisk(name: String, buf: AVAudioPCMBuffer) throws ->
     writeAVAudioPCMBufferToWavFile(buffer: buf, fileURL: url)
     return url
 }
-
 
 public func mergeMP3Files(audioFileUrls: [URL], outputUrl: URL) async throws {
     let composition = AVMutableComposition()
@@ -87,12 +93,16 @@ public func mergeMP3Files(audioFileUrls: [URL], outputUrl: URL) async throws {
             compositionTrack = newTrack
         }
 
-        try await compositionTrack.insertTimeRange(track.load(.timeRange), of: track, at: currentTime)
+        try await compositionTrack.insertTimeRange(
+            track.load(.timeRange), of: track, at: currentTime)
 
         currentTime = await CMTimeAdd(currentTime, try track.load(.timeRange).duration)
     }
 
-    guard let exportSession = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetAppleM4A) else {
+    guard
+        let exportSession = AVAssetExportSession(
+            asset: composition, presetName: AVAssetExportPresetAppleM4A)
+    else {
         throw MessageError("Could not create export session")
     }
 
