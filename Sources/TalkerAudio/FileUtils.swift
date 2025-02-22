@@ -36,6 +36,7 @@ public func buildURLForFile(
     return fileURL
 }
 
+/// build the url for a audio file.
 public func buildURLForAudio(named fileName: String, extension: String = "wav") -> URL {
     buildURLForFile(named: fileName, inDirectory: "audio", extension: `extension`)
 }
@@ -48,12 +49,16 @@ enum SaveAudioError: String, LocalizedError {
     }
 }
 
-public func saveAudioBufferToDisk(name: String, buf: StreamAudioBuffer) throws -> URL {
+/// save audio buffer to disk and return the id of the file.
+/// use `buildURLForAudio(named:)` to get the url of the file
+public func saveAudioBufferToDisk(name: String, buf: StreamAudioBuffer) throws -> String {
     let buffer = try listOfPCMBytesToSingleAVAudioPCMBuffer(pcmDataList: buf.datas)
     return try saveAudioBufferToDisk(name: name, buf: buffer)
 }
 
-public func saveAudioBufferToDisk(name: String, buf: AVAudioPCMBuffer) throws -> URL {
+/// save audio buffer to disk and return the id of the file.
+/// use `buildURLForAudio(named:)` to get the url of the file
+public func saveAudioBufferToDisk(name: String, buf: AVAudioPCMBuffer) throws -> String {
     let url = buildURLForAudio(named: name)
     do {
         try FileManager.default.createDirectory(
@@ -65,7 +70,7 @@ public func saveAudioBufferToDisk(name: String, buf: AVAudioPCMBuffer) throws ->
 
     try normalizeVolume(audioBuffer: buf)
     writeAVAudioPCMBufferToWavFile(buffer: buf, fileURL: url)
-    return url
+    return name
 }
 
 public func mergeMP3Files(audioFileUrls: [URL], outputUrl: URL) async throws {

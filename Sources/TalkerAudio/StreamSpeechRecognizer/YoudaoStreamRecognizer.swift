@@ -6,15 +6,16 @@
 //
 
 import AVFoundation
+import CryptoKit
 import Foundation
 import OSLog
 import StreamAudio
 import SwiftUI
-import CryptoKit
 import TalkerCommon
 
-
-public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer, URLSessionWebSocketDelegate, @unchecked Sendable {
+public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer,
+    URLSessionWebSocketDelegate, @unchecked Sendable
+{
     private let recorder = StreamAudioRecorder()
     private var streamAudioBuffer = StreamAudioBuffer()
     private var language: String = "en-US"
@@ -61,7 +62,9 @@ public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer, URL
         return SpeechRecognizerResult(text: text)
     }
 
-    public func startRecordingAndRecognition(language: String, reference: String?, pronounceInfoRequired: Bool) async throws {
+    public func startRecordingAndRecognition(
+        language: String, reference: String?, pronounceInfoRequired: Bool
+    ) async throws {
         if pronounceInfoRequired {
             throw StreamSpeechRecognizerError.notSupportPronounceInfo
         }
@@ -69,7 +72,7 @@ public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer, URL
         try recorder.start()
         startSendAudioTask()
     }
-    
+
     public func stopRecordingAndCancelRecoginition() throws {
         try stopRecording()
         try cancelRecoginition()
@@ -87,46 +90,49 @@ public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer, URL
         sendAudioTask?.cancel()
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
     }
-    
-    public func saveAudioToFile(_ name: String?) throws -> URL {
+
+    public func saveAudioToFile(_ name: String?) throws -> String {
         return try saveAudioBufferToDisk(name: name ?? UUID().uuidString, buf: streamAudioBuffer)
     }
-    
+
     func startSendAudioTask() {
         connectWebsocket()
-        
+
         sendAudioTask = Task {
             defer {
                 if !self.recognizedFinalText.isFinished {
                     self.recognizedFinalText.finish(throwing: MessageError("error exit"))
                 }
             }
-            
+
             try await self.websocketConnected.wait()
-            
+
             try await withThrowingTaskGroup(of: Void.self) { group in
                 infoLog("wait for started response")
                 try await self.waitForStartedResponse()
                 try await self.sendAudioHeader()
-                
+
                 group.addTask {
                     try await self.readResult()
                 }
-                
+
                 group.addTask { [self] in
                     var offset = StreamIndexOffset(index: 0, offset: 0)
                     while !Task.isCancelled {
                         guard let webSocketTask else {
                             throw MessageError("No websocket")
                         }
-                        
+
                         if let data = streamAudioBuffer.subrangeBytes(offset) {
                             if data.isEmpty {
                                 try await Task.sleep(for: .milliseconds(20))
                             }
-                            debugLog("send audio bytes: \(data.count), offset: \(String(describing: offset))")
+                            debugLog(
+                                "send audio bytes: \(data.count), offset: \(String(describing: offset))"
+                            )
                             try await webSocketTask.send(.data(data))
-                            self.streamAudioBuffer.advanceStreamIndexOffset(&offset, size: data.count)
+                            self.streamAudioBuffer.advanceStreamIndexOffset(
+                                &offset, size: data.count)
                         } else {
                             try await sendAudioFinish()
                             infoLog("close websocket")
@@ -134,9 +140,9 @@ public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer, URL
                         }
                     }
                 }
-                
+
                 for try await _ in group {
-                    
+
                 }
             }
         }
@@ -152,18 +158,18 @@ public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer, URL
         self.webSocketTask = webSocketTask
         webSocketTask.resume()
     }
-    
+
     func readResult() async throws {
         guard let webSocketTask else {
             return
         }
-        
+
         var text = ""
         while webSocketTask.closeCode == .invalid && !Task.isCancelled {
             guard let msg = try await readMessage() else {
                 break
             }
-            
+
             switch msg {
             case .error(let e):
                 throw MessageError(e.errorCode)
@@ -174,7 +180,8 @@ public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer, URL
                     break
                 }
                 infoLog("read message: \(String(describing: recognition))")
-                let recognized = recognition.result.filter({!$0.st.partial}).map(\.st.sentence).joined(separator: " ")
+                let recognized = recognition.result.filter({ !$0.st.partial }).map(\.st.sentence)
+                    .joined(separator: " ")
                 text += recognized
             }
         }
@@ -192,17 +199,18 @@ public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer, URL
             errorLog("receive message error: \(error)")
             return nil
         }
-        let resp = switch message {
-        case .string(let data):
-            try JSONDecoder().decode(YoudaoResponse.self, from: data.data(using: .utf8)!)
-        case .data(_):
-            throw MessageError("Unexpected binary message")
-        @unknown default:
-            fatalError()
-        }
+        let resp =
+            switch message {
+            case .string(let data):
+                try JSONDecoder().decode(YoudaoResponse.self, from: data.data(using: .utf8)!)
+            case .data(_):
+                throw MessageError("Unexpected binary message")
+            @unknown default:
+                fatalError()
+            }
         return resp
     }
-    
+
     func waitForStartedResponse() async throws {
         let messge = try await readMessage()
         guard case .started(_) = messge else {
@@ -210,12 +218,13 @@ public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer, URL
         }
         infoLog("started message received")
     }
-    
+
     func sendAudioHeader() async throws {
         guard let webSocketTask, webSocketTask.closeCode == .invalid else {
             throw MessageError("Websocket not available")
         }
-        let wavHeader = getWavHeader(sampleRate: 16000, bitsPerSample: 16, numberOfChannels: 1, audioDataLength: 60000)
+        let wavHeader = getWavHeader(
+            sampleRate: 16000, bitsPerSample: 16, numberOfChannels: 1, audioDataLength: 60000)
         try await webSocketTask.send(.data(wavHeader))
     }
 
@@ -225,9 +234,10 @@ public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer, URL
         }
         try await webSocketTask.send(.data("{\"end\": \"true\"}".data(using: .utf8)!))
     }
-    
+
     public func urlSession(
-        _ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?
+        _ session: URLSession, webSocketTask: URLSessionWebSocketTask,
+        didOpenWithProtocol protocol: String?
     ) {
         websocketConnected.finish(())
         debugLog("websocket connected")
@@ -243,7 +253,7 @@ public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer, URL
         websocketClosed = true
         debugLog("websocket close: \(closeCode.rawValue)")
     }
-    
+
     deinit {
         self.webSocketTask?.cancel()
         self.sendAudioTask?.cancel()
@@ -303,14 +313,14 @@ struct YoudaoRecognition: Codable {
     struct RecognitionResult: Codable {
         struct Sentence: Codable {
             struct Word: Codable {
-                let w: String   // 词
-                let wb: Int     // 词开始时间
-                let we: Int     // 词结束时间
+                let w: String  // 词
+                let wb: Int  // 词开始时间
+                let we: Int  // 词结束时间
             }
 
-            let bg: Int      // 句子开始时间
-            let ed: Int      // 句子结束时间
-            let ws: [Word]   // 词列表
+            let bg: Int  // 句子开始时间
+            let ed: Int  // 句子结束时间
+            let ws: [Word]  // 词列表
             let partial: Bool
             let type: Int
             let sentence: String
@@ -325,7 +335,6 @@ struct YoudaoRecognition: Codable {
     let errorCode: String
 }
 
-
 class YoudaoURLBuilder {
     private var appKey: String
     private var appSecret: String
@@ -334,7 +343,7 @@ class YoudaoURLBuilder {
     private let version = "v1"
     private let rate = "16000"
     private let url = "wss://openapi.youdao.com/stream_asropenapi"
-    
+
     init(appKey: String, appSecret: String) {
         self.appKey = appKey
         self.appSecret = appSecret

@@ -241,7 +241,9 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
                 throwing: MessageError("error connect, uniqueId: \(uniqueId)"))
         }
         websocketClosed.value = true
-        infoLog("websocket close: \(closeCode.rawValue), uniqueId: \(uniqueId) reason: \(String(describing: reason))")
+        infoLog(
+            "websocket close: \(closeCode.rawValue), uniqueId: \(uniqueId) reason: \(String(describing: reason))"
+        )
     }
 
     deinit {
@@ -344,7 +346,7 @@ public final class FirstPartyWebsocketStreamRecognizer: BaseFirstPartyWebsocketR
         queue.cancelAllOperations()
     }
 
-    public func saveAudioToFile(_ name: String?) throws -> URL {
+    public func saveAudioToFile(_ name: String?) throws -> String {
         return try saveAudioBufferToDisk(name: name ?? uniqueId, buf: streamAudioBuffer)
     }
 

@@ -5,12 +5,12 @@
 //  Created by feichao on 2023/3/19.
 //
 
-import Foundation
-import TalkerCommon
-import TalkerAudioObjC
 import AsyncObjects
+import Foundation
+import TalkerAudioObjC
+import TalkerCommon
 
-fileprivate class SimpleOperation: Operation, @unchecked Sendable {
+private class SimpleOperation: Operation, @unchecked Sendable {
     let callback: () -> Void
 
     init(callback: @escaping () -> Void) {
@@ -52,7 +52,7 @@ final class AzureStreamSpeechRecognizer: StreamSpeechRecognizer, @unchecked Send
     var onCanceled: (() -> Void)?
 
     var delegate: (any StreamSpeechRecognizerDelegate)?
-    
+
     init(sub: String, region: String) {
         self.sub = sub
         self.region = region
@@ -115,7 +115,9 @@ final class AzureStreamSpeechRecognizer: StreamSpeechRecognizer, @unchecked Send
         sessionStopped = OneShotChannel()
     }
 
-    func startRecordingAndRecognition(language: String, reference: String?, pronounceInfoRequired: Bool) async throws {
+    func startRecordingAndRecognition(
+        language: String, reference: String?, pronounceInfoRequired: Bool
+    ) async throws {
         if pronounceInfoRequired {
             throw StreamSpeechRecognizerError.notSupportPronounceInfo
         }
@@ -218,7 +220,7 @@ final class AzureStreamSpeechRecognizer: StreamSpeechRecognizer, @unchecked Send
         }
     }
 
-    func saveAudioToFile(_ name: String?) throws -> URL {
+    func saveAudioToFile(_ name: String?) throws -> String {
         return try saveAudioBufferToDisk(name: name ?? UUID().uuidString, buf: streamAudioBuffer)
     }
 

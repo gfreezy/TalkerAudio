@@ -6,16 +6,17 @@
 //
 
 import AVFoundation
+import CryptoKit
 import Foundation
 import OSLog
 import StreamAudio
 import SwiftUI
-import CryptoKit
 import TalkerCommon
 
-
 // https://www.xfyun.cn/doc/asr/rtasr/API.html
-public final class XfStreamRecognizer: NSObject, StreamSpeechRecognizer, URLSessionWebSocketDelegate, @unchecked Sendable {
+public final class XfStreamRecognizer: NSObject, StreamSpeechRecognizer,
+    URLSessionWebSocketDelegate, @unchecked Sendable
+{
     private let recorder = StreamAudioRecorder()
     private var streamAudioBuffer = StreamAudioBuffer()
     private var language: String = "en-US"
@@ -34,7 +35,7 @@ public final class XfStreamRecognizer: NSObject, StreamSpeechRecognizer, URLSess
     private let appSecret: String
 
     public var delegate: (any StreamSpeechRecognizerDelegate)?
-    
+
     init(appKey: String, appSecret: String) {
         self.appKey = appKey
         self.appSecret = appSecret
@@ -63,7 +64,9 @@ public final class XfStreamRecognizer: NSObject, StreamSpeechRecognizer, URLSess
         return SpeechRecognizerResult(text: text)
     }
 
-    public func startRecordingAndRecognition(language: String, reference: String?, pronounceInfoRequired: Bool) async throws {
+    public func startRecordingAndRecognition(
+        language: String, reference: String?, pronounceInfoRequired: Bool
+    ) async throws {
         if pronounceInfoRequired {
             throw StreamSpeechRecognizerError.notSupportPronounceInfo
         }
@@ -71,7 +74,7 @@ public final class XfStreamRecognizer: NSObject, StreamSpeechRecognizer, URLSess
         try recorder.start()
         startSendAudioTask()
     }
-    
+
     public func stopRecordingAndCancelRecoginition() throws {
         try stopRecording()
         try cancelRecoginition()
@@ -89,46 +92,49 @@ public final class XfStreamRecognizer: NSObject, StreamSpeechRecognizer, URLSess
         sendAudioTask?.cancel()
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
     }
-    
-    public func saveAudioToFile(_ name: String?) throws -> URL {
+
+    public func saveAudioToFile(_ name: String?) throws -> String {
         return try saveAudioBufferToDisk(name: name ?? UUID().uuidString, buf: streamAudioBuffer)
     }
-    
+
     func startSendAudioTask() {
         connectWebsocket()
-        
+
         sendAudioTask = Task {
             defer {
                 if !self.recognizedFinalText.isFinished {
                     self.recognizedFinalText.finish(throwing: MessageError("error exit"))
                 }
             }
-            
+
             try await self.websocketConnected.wait()
-            
+
             try await withThrowingTaskGroup(of: Void.self) { group in
                 infoLog("wait for started response")
                 try await self.waitForStartedResponse()
-                
+
                 group.addTask {
                     try await self.readResult()
                 }
-                
+
                 group.addTask { [self] in
                     var offset = StreamIndexOffset(index: 0, offset: 0)
                     while !Task.isCancelled {
                         guard let webSocketTask else {
                             throw MessageError("No websocket")
                         }
-                        
+
                         if let data = streamAudioBuffer.subrangeBytes(offset) {
-                            self.streamAudioBuffer.advanceStreamIndexOffset(&offset, size: data.count)
+                            self.streamAudioBuffer.advanceStreamIndexOffset(
+                                &offset, size: data.count)
                             if data.isEmpty {
-//                                infoLog("no more data, sleep")
+                                //                                infoLog("no more data, sleep")
                                 try await Task.sleep(for: .milliseconds(20))
                                 continue
                             }
-                            debugLog("send audio bytes: \(data.count), offset: \(String(describing: offset))")
+                            debugLog(
+                                "send audio bytes: \(data.count), offset: \(String(describing: offset))"
+                            )
                             try await webSocketTask.send(.data(data))
                         } else {
                             try await sendAudioFinish()
@@ -137,9 +143,9 @@ public final class XfStreamRecognizer: NSObject, StreamSpeechRecognizer, URLSess
                         }
                     }
                 }
-                
+
                 for try await _ in group {
-                    
+
                 }
             }
         }
@@ -155,18 +161,18 @@ public final class XfStreamRecognizer: NSObject, StreamSpeechRecognizer, URLSess
         self.webSocketTask = webSocketTask
         webSocketTask.resume()
     }
-    
+
     func readResult() async throws {
         guard let webSocketTask else {
             return
         }
-        
+
         var text = ""
         while webSocketTask.closeCode == .invalid && !Task.isCancelled {
             guard let msg = try await readMessage() else {
                 break
             }
-            
+
             switch msg.action {
             case .started:
                 fatalError()
@@ -174,16 +180,17 @@ public final class XfStreamRecognizer: NSObject, StreamSpeechRecognizer, URLSess
                 throw MessageError(msg.desc)
             case .result:
                 infoLog("read message: \(String(describing: msg.data))")
-                let trans = try JSONDecoder().decode(TranscriptionResponse.self, from: msg.data.data(using: .utf8)!)
+                let trans = try JSONDecoder().decode(
+                    TranscriptionResponse.self, from: msg.data.data(using: .utf8)!)
                 // 0 标识最终结果
-                
-                    let t = trans.cn.st.rt.flatMap {
-                        $0.ws
-                    }.flatMap {
-                        $0.cw
-                    }.map {
-                        $0.w
-                    }.joined()
+
+                let t = trans.cn.st.rt.flatMap {
+                    $0.ws
+                }.flatMap {
+                    $0.cw
+                }.map {
+                    $0.w
+                }.joined()
                 infoLog("recognized: \(t), type: \(trans.cn.st.type)")
                 if trans.cn.st.type == "0" {
                     text += t
@@ -205,18 +212,19 @@ public final class XfStreamRecognizer: NSObject, StreamSpeechRecognizer, URLSess
             return nil
         }
 
-        let resp = switch message {
-        case .string(let data):
-            try JSONDecoder().decode(XfResponseData.self, from: data.data(using: .utf8)!)
-        case .data(_):
-            throw MessageError("Unexpected binary message")
-        @unknown default:
-            fatalError()
-        }
+        let resp =
+            switch message {
+            case .string(let data):
+                try JSONDecoder().decode(XfResponseData.self, from: data.data(using: .utf8)!)
+            case .data(_):
+                throw MessageError("Unexpected binary message")
+            @unknown default:
+                fatalError()
+            }
         infoLog("receive new message: \(String(describing: resp))")
         return resp
     }
-    
+
     private func waitForStartedResponse() async throws {
         let message = try await readMessage()
         guard let message, message.action == .started else {
@@ -224,16 +232,17 @@ public final class XfStreamRecognizer: NSObject, StreamSpeechRecognizer, URLSess
         }
         infoLog("started message received")
     }
-    
+
     func sendAudioFinish() async throws {
         guard let webSocketTask, webSocketTask.closeCode == .invalid else {
             throw MessageError("Websocket not available")
         }
         try await webSocketTask.send(.data("{\"end\": true}".data(using: .utf8)!))
     }
-    
+
     public func urlSession(
-        _ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?
+        _ session: URLSession, webSocketTask: URLSessionWebSocketTask,
+        didOpenWithProtocol protocol: String?
     ) {
         websocketConnected.finish(())
         debugLog("websocket connected")
@@ -249,7 +258,7 @@ public final class XfStreamRecognizer: NSObject, StreamSpeechRecognizer, URLSess
         websocketClosed = true
         debugLog("websocket close: \(closeCode.rawValue)")
     }
-    
+
     deinit {
         self.webSocketTask?.cancel()
         self.sendAudioTask?.cancel()
@@ -257,13 +266,13 @@ public final class XfStreamRecognizer: NSObject, StreamSpeechRecognizer, URLSess
 
 }
 
-fileprivate enum XfResponseAction: String, Decodable {
+private enum XfResponseAction: String, Decodable {
     case started = "started"
     case result = "result"
     case error = "error"
 }
 
-fileprivate struct XfResponseData: Decodable {
+private struct XfResponseData: Decodable {
     var action: XfResponseAction
     var code: String
     var data: String
@@ -271,8 +280,7 @@ fileprivate struct XfResponseData: Decodable {
     var sid: String
 }
 
-
-fileprivate func buildUrl(appId: String, apiKey: String, lang: String) -> String {
+private func buildUrl(appId: String, apiKey: String, lang: String) -> String {
     let ts = String(Int(Date().timeIntervalSince1970))
     let signa = generateSigna(appId: appId, timestamp: ts, apiKey: apiKey)
     var components = URLComponents()
@@ -288,7 +296,7 @@ fileprivate func buildUrl(appId: String, apiKey: String, lang: String) -> String
     return "\(url)?\(query)"
 }
 
-fileprivate func generateSigna(appId: String, timestamp: String, apiKey: String) -> String {
+private func generateSigna(appId: String, timestamp: String, apiKey: String) -> String {
     // 步骤 1: 拼接 appId 和 timestamp
     let baseString = "\(appId)\(timestamp)"
 
@@ -298,9 +306,10 @@ fileprivate func generateSigna(appId: String, timestamp: String, apiKey: String)
 
     // 步骤 3: 使用 apiKey 对 MD5 后的字符串进行 HmacSHA1 加密，并进行 base64 编码
     let key = SymmetricKey(data: apiKey.data(using: .utf8)!)
-    let hmacData = HMAC<Insecure.SHA1>.authenticationCode(for: md5String.data(using: .utf8)!, using: key)
+    let hmacData = HMAC<Insecure.SHA1>.authenticationCode(
+        for: md5String.data(using: .utf8)!, using: key)
     let signaData = Data(hmacData)
-    
+
     return signaData.base64EncodedString()
 }
 
