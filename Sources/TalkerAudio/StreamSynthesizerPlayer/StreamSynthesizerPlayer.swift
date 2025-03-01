@@ -26,7 +26,7 @@ public enum StreamSynthesizerPlayerError: String, LocalizedError {
 public class StreamSynthesizerPlayer {
     //    private var synthesizerPlayers: [StreamSynthesizerProtocol] = []
     private let finished = OneShotChannel()
-    private var allPlayers: [any StreamSynthesizerProtocol & Sendable] = []
+    private let allPlayers: Lock<[any StreamSynthesizerProtocol & Sendable]> = Lock([])
     private var task: Task<(), Error>? = nil
     private let newPlayerFunc:
         @Sendable (_ text: String, _ voiceId: String, _ style: String, _ role: String) ->
@@ -93,26 +93,33 @@ public class StreamSynthesizerPlayer {
                     }
                 }
 
-                for await (text, player) in channel.buffer(policy: .bounded(5)) {
-                    try Task.checkCancellation()
-                    allPlayers.append(player)
-                    infoLog("start play for: \(text)")
-                    try await player.play()
-                    infoLog("wait for player to stop")
-                    try await player.waitForPlayStopped()
-                    infoLog("play stopped for: \(text)")
+                group.addTask { @Sendable in
+                    for await (text, player) in channel.buffer(policy: .bounded(5)) {
+                        try Task.checkCancellation()
+                        self.allPlayers.withLock { $0.append(player) }
+                        infoLog("start play for: \(text)")
+                        try await player.play()
+                        infoLog("wait for player to stop")
+                        try await player.waitForPlayStopped()
+                        infoLog("play stopped for: \(text)")
+                    }
+                }
+
+                for try await _ in group {
                 }
             }
 
             try Task.checkCancellation()
 
-            infoLog("players count: \(self.allPlayers.count)")
-            guard let saveTo, !allPlayers.isEmpty else {
+            infoLog("players count: \(self.allPlayers.withLock { $0.count })")
+            guard let saveTo, !allPlayers.withLock({ $0.isEmpty }) else {
                 return
             }
 
-            let mp3Files = allPlayers.map { player in
-                player.cachePath()
+            let mp3Files = allPlayers.withLock {
+                $0.map { player in
+                    player.cachePath()
+                }
             }
             let outputMp3File = buildURLForAudio(named: saveTo)
             infoLog("will save to \(outputMp3File)")
@@ -151,10 +158,12 @@ public class StreamSynthesizerPlayer {
         if !task.isCancelled {
             task.cancel()
         }
-        for player in allPlayers {
-            infoLog("stop player inner")
-            if player.isPlaying {
-                try? player.stop()
+        allPlayers.withLock { players in
+            for player in players {
+                infoLog("stop player inner")
+                if player.isPlaying {
+                    try? player.stop()
+                }
             }
         }
     }
