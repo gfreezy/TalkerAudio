@@ -1,0 +1,28 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "swift",
+			"args": [
+				"build",
+				"--build-tests",
+				"-Xswiftc",
+				"-diagnostic-style=llvm",
+				"--triple",
+				"arm64-apple-ios16.0",
+				"--sdk",
+				"/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
+			],
+			"env": {},
+			"cwd": "/Users/feichao/AllSunday/TalkerAudio",
+			"disableTaskQueue": true,
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": [],
+			"label": "swift: Build All",
+			"detail": "swift build --build-tests -Xswiftc -diagnostic-style=llvm"
+		}
+	]
+}

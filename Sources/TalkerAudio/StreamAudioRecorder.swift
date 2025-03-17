@@ -6,6 +6,12 @@
 //
 
 import AVFoundation
+import TalkerCommon
+
+public enum RecordFormat {
+    case aac(bitRate: Int)
+    case pcm
+}
 
 public final class StreamAudioRecorder: Sendable {
 
@@ -17,16 +23,22 @@ public final class StreamAudioRecorder: Sendable {
             audioInputMoreDataBlockValue.value
         }
     }
-    
+
     private let audioInputMoreDataBlockValue: Lock<((Data) -> Void)?> = Lock(nil)
     private let isRunningValue: Lock<Bool> = Lock(false)
     private nonisolated(unsafe) var audioQueue: AudioQueueRef?
-    private nonisolated(unsafe) var audioBuffers: [AudioQueueBufferRef?] = Array(repeating: nil, count: 3)
+    private nonisolated(unsafe) var audioBuffers: [AudioQueueBufferRef?] = Array(
+        repeating: nil, count: 3)
+    private let aacEncoder: Lock<AacAdtsEncoder?> = Lock(nil)
+    private let queue = DispatchQueue(label: "StreamAudioRecorder")
 
     public var isRunning: Bool {
         isRunningValue.value
     }
-    
+
+    public init() {
+    }
+
     private func handleInputBuffer(
         inAQ: AudioQueueRef,
         inBuffer: AudioQueueBufferRef,
@@ -34,23 +46,134 @@ public final class StreamAudioRecorder: Sendable {
         inNumPackets: UInt32,
         inPacketDesc: UnsafePointer<AudioStreamPacketDescription>?
     ) {
-        guard isRunning else { return }
-        
-        if let block = audioInputMoreDataBlock {
-            let data = Data(bytes: inBuffer.pointee.mAudioData, count: Int(inBuffer.pointee.mAudioDataByteSize))
-            block(data)
+        defer {
+            if isRunning {
+                let result = AudioQueueEnqueueBuffer(inAQ, inBuffer, 0, nil)
+                if result != noErr {
+                    print("Error enqueuing buffer: \(result)")
+                }
+            }
         }
-        
-        let result = AudioQueueEnqueueBuffer(inAQ, inBuffer, 0, nil)
-        if result != noErr {
-            print("Error enqueuing buffer: \(result)")
+
+        guard isRunning else { return }
+
+        guard
+            let pcmBuffer = convertToPCMBuffer(
+                inBuffer: inBuffer,
+                inStartTime: inStartTime,
+                inNumPackets: inNumPackets,
+                inPacketDesc: inPacketDesc
+            )
+        else {
+            return
+        }
+        guard let _block = audioInputMoreDataBlockValue.value else {
+            return
+        }
+
+        nonisolated(unsafe) let uncheckedPcmBuffer = pcmBuffer
+        nonisolated(unsafe) let block = _block
+
+        queue.async {
+            do {
+                let encoder = self.aacEncoder.value
+                let outAudioBuffer: Data
+
+                if let encoder {
+//                    infoLog("Encode audio")
+                    // 编码PCM缓冲区
+                    let buffer = try encoder.encode(
+                        inputBuffer: uncheckedPcmBuffer
+                    )
+
+                    outAudioBuffer = buffer
+                } else {
+//                    infoLog("No encoder, use PCM")
+                    outAudioBuffer = Data.fromAudioBuffer(uncheckedPcmBuffer)
+                }
+                
+                if !outAudioBuffer.isEmpty {
+                    block(outAudioBuffer)
+                }
+            } catch {
+                errorLog("Failed to encode audio: \(error)")
+            }
         }
     }
 
-    private func setup() throws {
+    private func convertToPCMBuffer(
+        inBuffer: AudioQueueBufferRef,
+        inStartTime: UnsafePointer<AudioTimeStamp>,
+        inNumPackets: UInt32,
+        inPacketDesc: UnsafePointer<AudioStreamPacketDescription>?
+    ) -> AVAudioPCMBuffer? {
+        // 创建音频格式
+        let format = getRecordingFormat()
+
+        guard
+            let pcmBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: inNumPackets)
+        else {
+            print("Failed to create PCM buffer")
+            return nil
+        }
+
+        // 使用 AudioStreamPacketDescription 来解析数据
+        if let packetDescriptions = inPacketDesc {
+            var currentOffset: Int = 0
+            let audioData = inBuffer.pointee.mAudioData.assumingMemoryBound(to: Int16.self)
+            let ptr = UnsafeMutableBufferPointer(
+                start: pcmBuffer.int16ChannelData?[0],
+                count: Int(inNumPackets))
+
+            // 遍历每个数据包
+            for i in 0..<Int(inNumPackets) {
+                let packetDesc = packetDescriptions.advanced(by: i).pointee
+                let packetOffset = Int(packetDesc.mStartOffset)
+                let packetSize = Int(packetDesc.mDataByteSize)
+
+                // 确保不会越界
+                guard currentOffset + packetSize <= Int(inBuffer.pointee.mAudioDataByteSize)
+                else {
+                    errorLog("Packet size exceeds buffer bounds")
+                    break
+                }
+
+                // 复制这个包的数据
+                let source = audioData.advanced(by: packetOffset / 2)  // 除以2因为Int16是2字节
+                ptr.baseAddress?.advanced(by: currentOffset / 2)
+                    .update(from: source, count: packetSize / 2)
+
+                currentOffset += packetSize
+            }
+        } else {
+            // 如果没有包描述（PCM数据），直接复制整个缓冲区
+            let audioData = inBuffer.pointee.mAudioData.assumingMemoryBound(to: Int16.self)
+            let ptr = UnsafeMutableBufferPointer(
+                start: pcmBuffer.int16ChannelData?[0],
+                count: Int(inNumPackets))
+            ptr.baseAddress?.update(from: audioData, count: Int(inNumPackets))
+        }
+
+        pcmBuffer.frameLength = inNumPackets
+        return pcmBuffer
+    }
+
+    private func setup(format: RecordFormat) throws {
         var dataFormat = getStreamDescription()
-        let callback: AudioQueueInputCallback = { userData, inAQ, inBuffer, inStartTime, inNumPackets, inPacketDesc in
-            let recorder = Unmanaged<StreamAudioRecorder>.fromOpaque(userData!).takeUnretainedValue()
+        guard let aacInputFormat = AVAudioFormat(streamDescription: &dataFormat) else {
+            throw MessageError("Failed to create AVAudioFormat")
+        }
+        if case .aac(let bitRate) = format {
+            infoLog("Create aac encoder")
+            let aacEncoder = AacAdtsEncoder()
+            try aacEncoder.setup(inputFormat: aacInputFormat, bitRate: bitRate)
+            self.aacEncoder.value = aacEncoder
+        }
+
+        let callback: AudioQueueInputCallback = {
+            userData, inAQ, inBuffer, inStartTime, inNumPackets, inPacketDesc in
+            let recorder = Unmanaged<StreamAudioRecorder>.fromOpaque(userData!)
+                .takeUnretainedValue()
             recorder.handleInputBuffer(
                 inAQ: inAQ,
                 inBuffer: inBuffer,
@@ -75,7 +198,9 @@ public final class StreamAudioRecorder: Sendable {
         }
 
         var bufferByteSize: UInt32 = 0
-        try deriveBufferSize(audioQueue: audioQueue!, dataFormat: &dataFormat, seconds: 0.04, bufferByteSize: &bufferByteSize)
+        try deriveBufferSize(
+            audioQueue: audioQueue!, dataFormat: &dataFormat, seconds: 0.04,
+            bufferByteSize: &bufferByteSize)
 
         for i in 0..<audioBuffers.count {
             let result = AudioQueueAllocateBuffer(audioQueue!, bufferByteSize, &audioBuffers[i])
@@ -88,14 +213,15 @@ public final class StreamAudioRecorder: Sendable {
                 throw MessageError("AudioQueueEnqueueBuffer error: \(enqueueResult)")
             }
         }
+        isRunningValue.value = false
     }
 
-    public func start() throws {
+    public func start(format: RecordFormat = .pcm) throws {
         guard !isRunning else {
             throw MessageError("Audio recorder is already running")
         }
 
-        try setup()
+        try setup(format: format)
         isRunningValue.value = true
 
         let result = AudioQueueStart(audioQueue!, nil)
@@ -120,11 +246,12 @@ public final class StreamAudioRecorder: Sendable {
     }
 }
 
-fileprivate func getStreamDescription() -> AudioStreamBasicDescription {
+private func getStreamDescription() -> AudioStreamBasicDescription {
     return AudioStreamBasicDescription(
         mSampleRate: 16000,
         mFormatID: kAudioFormatLinearPCM,
-        mFormatFlags: kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked | kAudioFormatFlagsNativeEndian,
+        mFormatFlags: kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked
+            | kAudioFormatFlagsNativeEndian,
         mBytesPerPacket: 2,
         mFramesPerPacket: 1,
         mBytesPerFrame: 2,
@@ -134,8 +261,12 @@ fileprivate func getStreamDescription() -> AudioStreamBasicDescription {
     )
 }
 
+private func getRecordingFormat() -> AVAudioFormat {
+    var dataFormat = getStreamDescription()
+    return AVAudioFormat(streamDescription: &dataFormat)!
+}
 
-fileprivate func deriveBufferSize(
+private func deriveBufferSize(
     audioQueue: AudioQueueRef,
     dataFormat: inout AudioStreamBasicDescription,
     seconds: Float64,
@@ -159,5 +290,6 @@ fileprivate func deriveBufferSize(
     }
 
     let numBytesForTime = Float64(dataFormat.mSampleRate) * Float64(maxPacketSize) * seconds
-    bufferByteSize = UInt32(numBytesForTime) < maxBufferSize ? UInt32(numBytesForTime) : maxBufferSize
+    bufferByteSize =
+        UInt32(numBytesForTime) < maxBufferSize ? UInt32(numBytesForTime) : maxBufferSize
 }

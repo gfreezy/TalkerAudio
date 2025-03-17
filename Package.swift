@@ -15,10 +15,11 @@ let package = Package(
             targets: ["TalkerAudio"])
     ],
     dependencies: [
-        .package(url: "https://github.com/gfreezy/talkercommon", from: "20241210.0.2"),
+        .package(url: "https://github.com/gfreezy/talkercommon", from: "20241210.1.8"),
         .package(url: "https://github.com/gfreezy/StreamAudioPlayer", from: "20241212.0.3"),
         .package(url: "https://github.com/SwiftyLab/AsyncObjects", from: "2.1.0"),
         .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
+        .package(url: "https://github.com/apple/swift-testing", from: "0.1.0"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -44,6 +45,9 @@ let package = Package(
         ),
         .testTarget(
             name: "TalkerAudioTests",
-            dependencies: ["TalkerAudio"]),
+            dependencies: [
+                "TalkerAudio",
+                .product(name: "Testing", package: "swift-testing"),
+            ]),
     ]
 )

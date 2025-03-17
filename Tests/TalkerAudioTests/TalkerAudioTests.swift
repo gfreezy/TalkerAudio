@@ -1,9 +1,10 @@
-import XCTest
+import Testing
+
 @testable import TalkerAudio
 
-final class TalkerAudioTests: XCTestCase {
-    func testJson() throws {
-        let json = """
+@Test("testJson")
+func testJson() throws {
+  let json = """
     {
       "data": "I'm speaking on this topic. First one pops in my mind is the first time we went to elementary school in there. They first pops of feeling is sadness and fear nice in their day and the youngest children.King of houses and in the usual I spend the most time with my family and also I just go to the king garden for about one year so I I'm not spend too much time with his classmate or to make friends also I.I think I'm introverted person so in their day I just can stop crying, adjust can control my control myself but as I made funding classmates also I was started.English boarding school my classmates my classmates are also comforted me, she said you just need to insist it five days you can go back home and I'm so things about her 'cause when I was so sad she your.To comfort to me.",
       "desc": "success",
@@ -5829,6 +5830,9 @@ final class TalkerAudioTests: XCTestCase {
     }
 
     """
-        XCTAssertNoThrow(try JSONDecoder().decode(ResponseData.self, from: json.data(using: .utf8)!), "parse json")
-    }
+
+  #expectNoThrow(
+    try JSONDecoder().decode(ResponseData.self, from: json.data(using: .utf8)!),
+    "parse json"
+  )
 }

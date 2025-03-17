@@ -1,5 +1,5 @@
 {
-  "originHash" : "135d966e5d5f8c3363ca4c48a7c54372039f3b029f0c8512540b85bb8d9db6e4",
+  "originHash" : "a4edc28057e823225e19081813699f5f6b4d6b7b71bc384f27283d7b89caf7d3",
   "pins" : [
     {
       "identity" : "asyncobjects",
@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-async-algorithms",
       "state" : {
-        "revision" : "5c8bd186f48c16af0775972700626f0b74588278",
-        "version" : "1.0.2"
+        "revision" : "4c3ea81f81f0a25d0470188459c6d4bf20cf2f97",
+        "version" : "1.0.3"
       }
     },
     {
@@ -74,12 +74,30 @@
       }
     },
     {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "state" : {
+        "revision" : "0687f71944021d616d34d922343dcef086855920",
+        "version" : "600.0.1"
+      }
+    },
+    {
+      "identity" : "swift-testing",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-testing",
+      "state" : {
+        "revision" : "399f76dcd91e4c688ca2301fa24a8cc6d9927211",
+        "version" : "0.99.0"
+      }
+    },
+    {
       "identity" : "talkercommon",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/gfreezy/talkercommon",
       "state" : {
-        "revision" : "75f58e13fd6777cdc87b67fe264ef8a314b5b1d4",
-        "version" : "20241210.0.2"
+        "revision" : "23145ab7e5b8e58ba0b4f1cee7cb1e7a17090e0b",
+        "version" : "20241210.1.8"
       }
     },
     {
