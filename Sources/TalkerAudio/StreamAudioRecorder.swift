@@ -8,7 +8,7 @@
 import AVFoundation
 import TalkerCommon
 
-public enum RecordFormat: Equatable {
+public enum RecordFormat: Equatable, Sendable {
     case aac(bitRate: Int)
     case pcm
 
@@ -28,6 +28,13 @@ public enum RecordFormat: Equatable {
         case .aac: return "aac"
         case .pcm: return "wav"
         }
+    }
+
+    public static func fromUrl(url: URL) -> RecordFormat {
+        if url.pathExtension == "aac" {
+            return .aac(bitRate: 16000)
+        }
+        return .pcm
     }
 }
 
