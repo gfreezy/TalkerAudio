@@ -63,13 +63,14 @@ public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer,
     }
 
     public func startRecordingAndRecognition(
-        language: String, reference: String?, pronounceInfoRequired: Bool
+        language: String, reference: String?, pronounceInfoRequired: Bool, format: RecordFormat
     ) async throws {
         if pronounceInfoRequired {
             throw StreamSpeechRecognizerError.notSupportPronounceInfo
         }
         self.language = language
-        try recorder.start()
+        assert(format == .pcm)
+        try recorder.start(format: format)
         startSendAudioTask()
     }
 
@@ -92,7 +93,8 @@ public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer,
     }
 
     public func saveAudioToFile(_ name: String?) throws -> String {
-        return try saveAudioBufferToDisk(name: name ?? UUID().uuidString, buf: streamAudioBuffer)
+        return try saveAudioBufferToDisk(
+            name: name ?? UUID().uuidString, buf: streamAudioBuffer, format: .pcm)
     }
 
     func startSendAudioTask() {

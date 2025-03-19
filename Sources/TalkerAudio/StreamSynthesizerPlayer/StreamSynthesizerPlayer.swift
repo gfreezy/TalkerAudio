@@ -121,7 +121,7 @@ public class StreamSynthesizerPlayer {
                     player.cachePath()
                 }
             }
-            let outputMp3File = buildURLForAudio(named: saveTo)
+            let outputMp3File = buildURLForAudio(named: saveTo, format: .pcm)
             infoLog("will save to \(outputMp3File)")
             do {
                 try FileManager.default.createDirectory(

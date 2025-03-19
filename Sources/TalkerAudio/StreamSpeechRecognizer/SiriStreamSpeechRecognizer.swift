@@ -37,8 +37,10 @@ public class BaseSiriSpeechRecognizer: NSObject, SFSpeechRecognitionTaskDelegate
     }
 
     public func startRecognition(
-        language: String, reference: String? = nil, pronounceInfoRequired: Bool = false
+        language: String, reference: String? = nil, pronounceInfoRequired: Bool = false,
+        format: RecordFormat
     ) async throws {
+        assert(format == .pcm)
         try await requestAuthorization()
 
         speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: language))
@@ -138,9 +140,10 @@ public final class SiriFileSpeechRecognizer: BaseSiriSpeechRecognizer, @unchecke
     }
 
     override public func startRecognition(
-        language: String, reference: String? = nil, pronounceInfoRequired: Bool = false
+        language: String, reference: String? = nil, pronounceInfoRequired: Bool = false,
+        format: RecordFormat
     ) async throws {
-        try await super.startRecognition(language: language, reference: reference)
+        try await super.startRecognition(language: language, reference: reference, format: format)
         let buffer = try readAVAudioPCMBufferFromWavFile(fileURL: audioFile)
         recognitionRequest?.append(buffer)
         try stopRecoginition()
@@ -192,13 +195,14 @@ public final class SiriStreamSpeechRecognizer: BaseSiriSpeechRecognizer, StreamS
     }
 
     public func startRecordingAndRecognition(
-        language: String, reference: String?, pronounceInfoRequired: Bool
+        language: String, reference: String?, pronounceInfoRequired: Bool, format: RecordFormat
     ) async throws {
+        assert(format == .pcm)
         if pronounceInfoRequired {
             throw StreamSpeechRecognizerError.notSupportPronounceInfo
         }
-        try await super.startRecognition(language: language, reference: reference)
-        try recorder.start()
+        try await super.startRecognition(language: language, reference: reference, format: format)
+        try recorder.start(format: format)
     }
 
     public func stopRecording(force: Bool = false) throws {
@@ -214,6 +218,7 @@ public final class SiriStreamSpeechRecognizer: BaseSiriSpeechRecognizer, StreamS
     }
 
     public func saveAudioToFile(_ name: String?) throws -> String {
-        return try saveAudioBufferToDisk(name: name ?? uniqueId, buf: streamAudioBuffer)
+        return try saveAudioBufferToDisk(
+            name: name ?? uniqueId, buf: streamAudioBuffer, format: .pcm)
     }
 }

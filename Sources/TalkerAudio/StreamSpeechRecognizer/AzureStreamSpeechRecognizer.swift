@@ -116,18 +116,19 @@ final class AzureStreamSpeechRecognizer: StreamSpeechRecognizer, @unchecked Send
     }
 
     func startRecordingAndRecognition(
-        language: String, reference: String?, pronounceInfoRequired: Bool
+        language: String, reference: String?, pronounceInfoRequired: Bool, format: RecordFormat
     ) async throws {
         if pronounceInfoRequired {
             throw StreamSpeechRecognizerError.notSupportPronounceInfo
         }
-        try startRecording(language: language)
+        assert(format == .pcm)
+        try startRecording(language: language, format: format)
         try startRecognition()
     }
 
-    func startRecording(language: String) throws {
+    func startRecording(language: String, format: RecordFormat) throws {
         try reset(language: language)
-        try recorder.start()
+        try recorder.start(format: format)
     }
 
     func startRecognition() throws {
@@ -221,7 +222,8 @@ final class AzureStreamSpeechRecognizer: StreamSpeechRecognizer, @unchecked Send
     }
 
     func saveAudioToFile(_ name: String?) throws -> String {
-        return try saveAudioBufferToDisk(name: name ?? UUID().uuidString, buf: streamAudioBuffer)
+        return try saveAudioBufferToDisk(
+            name: name ?? UUID().uuidString, buf: streamAudioBuffer, format: .pcm)
     }
 
     private func recognitionStartDetectedHandler(

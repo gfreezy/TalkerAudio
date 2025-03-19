@@ -28,6 +28,7 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
     let url: String
     let extraHeaders: [String: String]
     let uniqueId: String
+    var format: RecordFormat = .pcm
 
     public init(url: String, extraHeaders: [String: String] = [:]) {
         self.url = url
@@ -41,12 +42,13 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
         return SpeechRecognizerResult(text: response.data, pronounceInfo: response.accuracy)
     }
 
-    public func startRecognition(language: String, reference: String?, pronounceInfoRequired: Bool)
-        async throws
-    {
+    public func startRecognition(
+        language: String, reference: String?, pronounceInfoRequired: Bool, format: RecordFormat
+    ) async throws {
         self.language.value = language
         self.reference.value = reference
         self.pronounceInfoRequired.value = pronounceInfoRequired
+        self.format = format
         try await startSendAudioTask()
     }
 
@@ -122,7 +124,7 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
         }
         let url = buildUrl(
             url: url, lang: language.value, reference: reference.value, uniqueId: self.uniqueId,
-            pronounceInfoRequired: pronounceInfoRequired.value)
+            pronounceInfoRequired: pronounceInfoRequired.value, format: format)
         var request = URLRequest(url: URL(string: url)!)
 
         for (key, value) in extraHeaders {
@@ -258,9 +260,12 @@ public final class FirstPartyWebsocketAudioFileRecognizer: BaseFirstPartyWebsock
     let audioFile: URL
     let isAllDataSent = Lock(false)
 
-    public init(url: String, audioFile: URL, extraHeaders: [String: String] = [:]) {
+    public init(
+        url: String, audioFile: URL, format: RecordFormat, extraHeaders: [String: String] = [:]
+    ) {
         self.audioFile = audioFile
         super.init(url: url, extraHeaders: extraHeaders)
+        self.format = format
     }
 
     override func readData() -> Data? {
@@ -268,16 +273,26 @@ public final class FirstPartyWebsocketAudioFileRecognizer: BaseFirstPartyWebsock
             return nil
         }
         isAllDataSent.value = true
-        do {
-            let buffer = try readAVAudioPCMBufferFromWavFile(fileURL: audioFile)
-            let data = buffer.int16ChannelData!.pointee.withMemoryRebound(
-                to: UInt8.self, capacity: Int(buffer.frameLength) * 2
-            ) {
-                Data(bytes: $0, count: Int(buffer.frameLength * 2))
+        switch format {
+        case .pcm:
+            do {
+                let buffer = try readAVAudioPCMBufferFromWavFile(fileURL: audioFile)
+                let data = buffer.int16ChannelData!.pointee.withMemoryRebound(
+                    to: UInt8.self, capacity: Int(buffer.frameLength) * 2
+                ) {
+                    Data(bytes: $0, count: Int(buffer.frameLength * 2))
+                }
+                return data
+            } catch {
+                errorLog("read audio file error: \(error), uniqueId: \(uniqueId)")
             }
-            return data
-        } catch {
-            errorLog("read audio file error: \(error), uniqueId: \(uniqueId)")
+        case .aac:
+            do {
+                let data = try Data(contentsOf: audioFile)
+                return data
+            } catch {
+                errorLog("read audio file error: \(error), uniqueId: \(uniqueId)")
+            }
         }
 
         return nil
@@ -321,11 +336,13 @@ public final class FirstPartyWebsocketStreamRecognizer: BaseFirstPartyWebsocketR
     }
 
     public func startRecordingAndRecognition(
-        language: String, reference: String?, pronounceInfoRequired: Bool
+        language: String, reference: String?, pronounceInfoRequired: Bool, format: RecordFormat
     ) async throws {
-        try recorder.start()
+        self.format = format
+        try recorder.start(format: format)
         try await super.startRecognition(
-            language: language, reference: reference, pronounceInfoRequired: pronounceInfoRequired)
+            language: language, reference: reference, pronounceInfoRequired: pronounceInfoRequired,
+            format: format)
         isRecordingStopped.value = false
     }
 
@@ -347,7 +364,8 @@ public final class FirstPartyWebsocketStreamRecognizer: BaseFirstPartyWebsocketR
     }
 
     public func saveAudioToFile(_ name: String?) throws -> String {
-        return try saveAudioBufferToDisk(name: name ?? uniqueId, buf: streamAudioBuffer)
+        return try saveAudioBufferToDisk(
+            name: name ?? uniqueId, buf: streamAudioBuffer, format: format)
     }
 
     override func readData() -> Data? {
@@ -377,7 +395,8 @@ struct ResponseData: Decodable {
 }
 
 private func buildUrl(
-    url: String, lang: String, reference: String?, uniqueId: String, pronounceInfoRequired: Bool
+    url: String, lang: String, reference: String?, uniqueId: String, pronounceInfoRequired: Bool,
+    format: RecordFormat
 ) -> String {
     let ts = String(Int(Date().timeIntervalSince1970))
     var components = URLComponents()
@@ -387,6 +406,7 @@ private func buildUrl(
         URLQueryItem(name: "unique_id", value: uniqueId),
         URLQueryItem(
             name: "pronounce_info_required", value: pronounceInfoRequired ? "true" : "false"),
+        URLQueryItem(name: "format", value: format.rawValue),
     ]
 
     if let reference, !reference.isEmpty {

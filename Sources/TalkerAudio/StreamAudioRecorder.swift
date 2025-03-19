@@ -8,9 +8,27 @@
 import AVFoundation
 import TalkerCommon
 
-public enum RecordFormat {
+public enum RecordFormat: Equatable {
     case aac(bitRate: Int)
     case pcm
+
+    public init(bitRate: Int = 16000) {
+        self = .aac(bitRate: bitRate)
+    }
+
+    public var rawValue: String {
+        switch self {
+        case .aac: return "aac"
+        case .pcm: return "pcm"
+        }
+    }
+
+    public var fileExtension: String {
+        switch self {
+        case .aac: return "aac"
+        case .pcm: return "wav"
+        }
+    }
 }
 
 public final class StreamAudioRecorder: Sendable {
@@ -80,7 +98,7 @@ public final class StreamAudioRecorder: Sendable {
                 let outAudioBuffer: Data
 
                 if let encoder {
-//                    infoLog("Encode audio")
+                    //                    infoLog("Encode audio")
                     // 编码PCM缓冲区
                     let buffer = try encoder.encode(
                         inputBuffer: uncheckedPcmBuffer
@@ -88,10 +106,10 @@ public final class StreamAudioRecorder: Sendable {
 
                     outAudioBuffer = buffer
                 } else {
-//                    infoLog("No encoder, use PCM")
+                    //                    infoLog("No encoder, use PCM")
                     outAudioBuffer = Data.fromAudioBuffer(uncheckedPcmBuffer)
                 }
-                
+
                 if !outAudioBuffer.isEmpty {
                     block(outAudioBuffer)
                 }
@@ -216,7 +234,7 @@ public final class StreamAudioRecorder: Sendable {
         isRunningValue.value = false
     }
 
-    public func start(format: RecordFormat = .pcm) throws {
+    public func start(format: RecordFormat) throws {
         guard !isRunning else {
             throw MessageError("Audio recorder is already running")
         }

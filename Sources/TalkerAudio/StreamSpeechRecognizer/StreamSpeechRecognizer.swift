@@ -141,7 +141,9 @@ public protocol StreamSpeechRecognizer: Sendable {
     var delegate: StreamSpeechRecognizerDelegate? { get set }
 
     func startRecordingAndRecognition(
-        language: String, reference: String?, pronounceInfoRequired: Bool) async throws
+        language: String, reference: String?, pronounceInfoRequired: Bool,
+        format: RecordFormat
+    ) async throws
 
     func recognizedResult() async throws -> SpeechRecognizerResult
 
@@ -155,8 +157,9 @@ public protocol StreamSpeechRecognizer: Sendable {
 }
 
 public protocol FileSpeechRecognizer: Sendable {
-    func startRecognition(language: String, reference: String?, pronounceInfoRequired: Bool)
-        async throws
+    func startRecognition(
+        language: String, reference: String?, pronounceInfoRequired: Bool, format: RecordFormat
+    ) async throws
 
     func recognizedResult() async throws -> SpeechRecognizerResult
 

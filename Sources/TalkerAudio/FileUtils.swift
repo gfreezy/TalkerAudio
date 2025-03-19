@@ -27,18 +27,18 @@ public func saveData(_ data: Data, toFileNamed fileName: String, inDirectory dir
 }
 
 public func buildURLForFile(
-    named fileName: String, inDirectory directoryName: String, extension: String = "wav"
+    named fileName: String, inDirectory directoryName: String, format: RecordFormat
 ) -> URL {
     let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         .first!
     let directoryURL = documentsDirectory.appendingPathComponent(directoryName)
-    let fileURL = directoryURL.appendingPathComponent("\(fileName).\(`extension`)")
+    let fileURL = directoryURL.appendingPathComponent("\(fileName).\(format.fileExtension)")
     return fileURL
 }
 
 /// build the url for a audio file.
-public func buildURLForAudio(named fileName: String, extension: String = "wav") -> URL {
-    buildURLForFile(named: fileName, inDirectory: "audio", extension: `extension`)
+public func buildURLForAudio(named fileName: String, format: RecordFormat) -> URL {
+    buildURLForFile(named: fileName, inDirectory: "audio", format: format)
 }
 
 enum SaveAudioError: String, LocalizedError {
@@ -51,15 +51,26 @@ enum SaveAudioError: String, LocalizedError {
 
 /// save audio buffer to disk and return the id of the file.
 /// use `buildURLForAudio(named:)` to get the url of the file
-public func saveAudioBufferToDisk(name: String, buf: StreamAudioBuffer) throws -> String {
-    let buffer = try listOfPCMBytesToSingleAVAudioPCMBuffer(pcmDataList: buf.datas)
-    return try saveAudioBufferToDisk(name: name, buf: buffer)
+public func saveAudioBufferToDisk(name: String, buf: StreamAudioBuffer, format: RecordFormat) throws
+    -> String
+{
+    switch format {
+    case .pcm:
+        let buffer = try listOfPCMBytesToSingleAVAudioPCMBuffer(pcmDataList: buf.datas)
+        return try saveAudioBufferToDisk(name: name, buf: buffer)
+    case .aac:
+        let url = buildURLForAudio(named: name, format: format)
+        try createDirectoryForAudio(url: url)
+        let file = try FileHandle(forWritingTo: url)
+        for data in buf.datas {
+            try file.write(contentsOf: data)
+        }
+        file.closeFile()
+        return name
+    }
 }
 
-/// save audio buffer to disk and return the id of the file.
-/// use `buildURLForAudio(named:)` to get the url of the file
-public func saveAudioBufferToDisk(name: String, buf: AVAudioPCMBuffer) throws -> String {
-    let url = buildURLForAudio(named: name)
+private func createDirectoryForAudio(url: URL) throws {
     do {
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
@@ -67,7 +78,13 @@ public func saveAudioBufferToDisk(name: String, buf: AVAudioPCMBuffer) throws ->
         errorLog("Error creating directory: \(error.localizedDescription)")
         throw error
     }
+}
 
+/// save audio buffer to disk and return the id of the file.
+/// use `buildURLForAudio(named:)` to get the url of the file
+public func saveAudioBufferToDisk(name: String, buf: AVAudioPCMBuffer) throws -> String {
+    let url = buildURLForAudio(named: name, format: .pcm)
+    try createDirectoryForAudio(url: url)
     try normalizeVolume(audioBuffer: buf)
     writeAVAudioPCMBufferToWavFile(buffer: buf, fileURL: url)
     return name

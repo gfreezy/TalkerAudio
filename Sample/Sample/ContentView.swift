@@ -56,7 +56,7 @@ struct ContentView: View {
 //            print("Failed to save audio buffer: \(error)")
 //        }
 
-        let url = buildURLForAudio(named: UUID().uuidString, extension: "aac")
+        let url = buildURLForAudio(named: UUID().uuidString, format: .pcm)
         do {
             try FileManager.default.createDirectory(
                 at: url.deletingLastPathComponent(), withIntermediateDirectories: true,
