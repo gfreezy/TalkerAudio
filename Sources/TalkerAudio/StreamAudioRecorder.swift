@@ -233,6 +233,8 @@ public final class StreamAudioRecorder: Sendable {
             let opusEncoder = try OpusOggEncoder(format: dataFormat, opusRate: bitRate, application: .voip)
             infoLog("Create opus encoder")
             self.audioEncoder.value = opusEncoder
+        case .pcm:
+            break
         default:
             throw MessageError("Unsupported format: \(format)")
         }
