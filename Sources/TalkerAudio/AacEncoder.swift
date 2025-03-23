@@ -20,7 +20,7 @@ public final class AacAdtsEncoder {
         }
         converter.bitRate = bitRate
         self.converter = converter
-        debugLog("AacAdtsEncoder setup")
+//        debugLog("AacAdtsEncoder setup")
     }
 
     /// Encode the input buffer to AAC ADTS format. Return emtpy Data if no enough data.
@@ -35,17 +35,17 @@ public final class AacAdtsEncoder {
             format: outputFormat, packetCapacity: 8, maximumPacketSize: 1024)
         // Convert PCM to AAC
         var error: NSError?
-        infoLog("encode frameLength: \(pcmBuffer.frameLength)")
+//        infoLog("encode frameLength: \(pcmBuffer.frameLength)")
         var inputPcmBuffer: AVAudioPCMBuffer? = pcmBuffer
         let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
             if let buf = inputPcmBuffer {
                 inputPcmBuffer = nil
                 outStatus.pointee = .haveData
-                debugLog("provide buf: \(buf.frameLength)")
+//                debugLog("provide buf: \(buf.frameLength)")
                 return buf
             } else {
                 outStatus.pointee = .noDataNow
-                debugLog("no data now")
+//                debugLog("no data now")
                 return nil
             }
         }
@@ -54,7 +54,7 @@ public final class AacAdtsEncoder {
         if status == .error, let error = error {
             throw TalkerError("convert error: \(error)")
         }
-        debugLog("status: \(status)")
+//        debugLog("status: \(status)")
         
         let adtsHeaderLength = 7
         let outputBufferSize = Int(outputBuffer.byteLength)
@@ -67,7 +67,7 @@ public final class AacAdtsEncoder {
         
         var data = Data(capacity: dataCapacity)
 
-        debugLog("packetCount: \(packetCount), outputBufferSize: \(outputBufferSize)")
+//        debugLog("packetCount: \(packetCount), outputBufferSize: \(outputBufferSize)")
         guard let packetDescriptions = outputBuffer.packetDescriptions else {
             throw TalkerError("packetDescriptions is nil")
         }
