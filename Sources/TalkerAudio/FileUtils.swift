@@ -61,11 +61,14 @@ public func saveAudioBufferToDisk(name: String, buf: StreamAudioBuffer, format: 
     case .aac:
         let url = buildURLForAudio(named: name, format: format)
         try createDirectoryForAudio(url: url)
+        FileManager.default.createFile(atPath: url.path(), contents: nil)
         let file = try FileHandle(forWritingTo: url)
+        defer {
+            file.closeFile()
+        }
         for data in buf.datas {
             try file.write(contentsOf: data)
         }
-        file.closeFile()
         return name
     }
 }
