@@ -261,11 +261,11 @@ public final class FirstPartyWebsocketAudioFileRecognizer: BaseFirstPartyWebsock
     let isAllDataSent = Lock(false)
 
     public init(
-        url: String, audioFile: URL, format: RecordFormat, extraHeaders: [String: String] = [:]
+        url: String, audioFile: URL, extraHeaders: [String: String] = [:]
     ) {
         self.audioFile = audioFile
         super.init(url: url, extraHeaders: extraHeaders)
-        self.format = format
+        self.format = RecordFormat.fromUrl(url: audioFile)
     }
 
     override func readData() -> Data? {
@@ -286,7 +286,7 @@ public final class FirstPartyWebsocketAudioFileRecognizer: BaseFirstPartyWebsock
             } catch {
                 errorLog("read audio file error: \(error), uniqueId: \(uniqueId)")
             }
-        case .aac:
+        case .aac, .opus:
             do {
                 let data = try Data(contentsOf: audioFile)
                 return data
@@ -320,7 +320,7 @@ public final class FirstPartyWebsocketStreamRecognizer: BaseFirstPartyWebsocketR
     }
 
     func setup() {
-        recorder.audioInputMoreDataBlock = { [weak self] buf in
+        recorder.audioInputMoreDataBlock = { [weak self] buf, finish in
             guard let self, !buf.isEmpty else {
                 return
             }
@@ -353,7 +353,6 @@ public final class FirstPartyWebsocketStreamRecognizer: BaseFirstPartyWebsocketR
 
     public func stopRecording(force: Bool = false) throws {
         try recorder.stop()
-        streamAudioBuffer.finishStream()
         if !isRecordingStopped.value {
             infoLog(
                 "stop Recording, recorded bytes: \(streamAudioBuffer.totalBytes), uniqueId: \(uniqueId)"
@@ -361,6 +360,7 @@ public final class FirstPartyWebsocketStreamRecognizer: BaseFirstPartyWebsocketR
         }
         isRecordingStopped.value = true
         queue.cancelAllOperations()
+        streamAudioBuffer.finishStream()
     }
 
     public func saveAudioToFile(_ name: String?) throws -> String {

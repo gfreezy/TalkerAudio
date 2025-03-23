@@ -11,6 +11,7 @@ import TalkerCommon
 public enum RecordFormat: Equatable, Sendable {
     case aac(bitRate: Int)
     case pcm
+    case opus(bitRate: Int)
 
     public init(bitRate: Int = 16000) {
         self = .aac(bitRate: bitRate)
@@ -20,6 +21,7 @@ public enum RecordFormat: Equatable, Sendable {
         switch self {
         case .aac: return "aac"
         case .pcm: return "pcm"
+        case .opus: return "opus"
         }
     }
 
@@ -27,6 +29,7 @@ public enum RecordFormat: Equatable, Sendable {
         switch self {
         case .aac: return "aac"
         case .pcm: return "wav"
+        case .opus: return "ogg"
         }
     }
 
@@ -34,13 +37,18 @@ public enum RecordFormat: Equatable, Sendable {
         if url.pathExtension == "aac" {
             return .aac(bitRate: 16000)
         }
+        if url.pathExtension == "ogg" {
+            return .opus(bitRate: 16000)
+        }
         return .pcm
     }
 }
 
+public typealias AudioInputMoreDataBlock = (Data, Bool) -> Void
+
 public final class StreamAudioRecorder: Sendable {
 
-    public var audioInputMoreDataBlock: ((Data) -> Void)? {
+    public var audioInputMoreDataBlock: AudioInputMoreDataBlock? {
         set {
             audioInputMoreDataBlockValue.value = newValue
         }
@@ -49,12 +57,12 @@ public final class StreamAudioRecorder: Sendable {
         }
     }
 
-    private let audioInputMoreDataBlockValue: Lock<((Data) -> Void)?> = Lock(nil)
+    private let audioInputMoreDataBlockValue: Lock<AudioInputMoreDataBlock?> = Lock(nil)
     private let isRunningValue: Lock<Bool> = Lock(false)
     private nonisolated(unsafe) var audioQueue: AudioQueueRef?
     private nonisolated(unsafe) var audioBuffers: [AudioQueueBufferRef?] = Array(
         repeating: nil, count: 3)
-    private let aacEncoder: Lock<AacAdtsEncoder?> = Lock(nil)
+    private let audioEncoder: Lock<(any AudioEncoderProtocol)?> = Lock(nil)
     private let queue = DispatchQueue(label: "StreamAudioRecorder")
 
     public var isRunning: Bool {
@@ -75,7 +83,7 @@ public final class StreamAudioRecorder: Sendable {
             if isRunning {
                 let result = AudioQueueEnqueueBuffer(inAQ, inBuffer, 0, nil)
                 if result != noErr {
-                    print("Error enqueuing buffer: \(result)")
+                    errorLog("Error enqueuing buffer: \(result)")
                 }
             }
         }
@@ -92,16 +100,21 @@ public final class StreamAudioRecorder: Sendable {
         else {
             return
         }
+        
+        queueAudioInputMoreDataBlock(buffer: pcmBuffer, finish: false)
+    }
+    
+    private func queueAudioInputMoreDataBlock(buffer: AVAudioPCMBuffer, finish: Bool) {
         guard let _block = audioInputMoreDataBlockValue.value else {
             return
         }
 
-        nonisolated(unsafe) let uncheckedPcmBuffer = pcmBuffer
+        nonisolated(unsafe) let uncheckedPcmBuffer = buffer
         nonisolated(unsafe) let block = _block
 
         queue.async {
             do {
-                let encoder = self.aacEncoder.value
+                let encoder = self.audioEncoder.value
                 let outAudioBuffer: Data
 
                 if let encoder {
@@ -118,7 +131,30 @@ public final class StreamAudioRecorder: Sendable {
                 }
 
                 if !outAudioBuffer.isEmpty {
-                    block(outAudioBuffer)
+                    block(outAudioBuffer, finish)
+                }
+            } catch {
+                errorLog("Failed to encode audio: \(error)")
+            }
+        }
+    }
+    
+    private func queueAudioInputFinishBlock() {
+        guard let _block = audioInputMoreDataBlockValue.value else {
+            return
+        }
+
+        nonisolated(unsafe) let block = _block
+
+        queue.async {
+            do {
+                guard let encoder = self.audioEncoder.value else {
+                    return
+                }
+                let outAudioBuffer = try encoder.finish()
+
+                if !outAudioBuffer.isEmpty {
+                    block(outAudioBuffer, true)
                 }
             } catch {
                 errorLog("Failed to encode audio: \(error)")
@@ -188,11 +224,17 @@ public final class StreamAudioRecorder: Sendable {
         guard let aacInputFormat = AVAudioFormat(streamDescription: &dataFormat) else {
             throw MessageError("Failed to create AVAudioFormat")
         }
-        if case .aac(let bitRate) = format {
+        switch format {
+        case .aac(bitRate: let bitRate):
+            let aacEncoder = try AacAdtsEncoder(inputFormat: aacInputFormat, bitRate: bitRate)
             infoLog("Create aac encoder")
-            let aacEncoder = AacAdtsEncoder()
-            try aacEncoder.setup(inputFormat: aacInputFormat, bitRate: bitRate)
-            self.aacEncoder.value = aacEncoder
+            self.audioEncoder.value = aacEncoder
+        case .opus(bitRate: let bitRate):
+            let opusEncoder = try OpusOggEncoder(format: dataFormat, opusRate: bitRate, application: .voip)
+            infoLog("Create opus encoder")
+            self.audioEncoder.value = opusEncoder
+        default:
+            throw MessageError("Unsupported format: \(format)")
         }
 
         let callback: AudioQueueInputCallback = {
@@ -268,6 +310,7 @@ public final class StreamAudioRecorder: Sendable {
         guard disposeResult == noErr else {
             throw MessageError("AudioQueueDispose error: \(disposeResult)")
         }
+        queueAudioInputFinishBlock()
     }
 }
 

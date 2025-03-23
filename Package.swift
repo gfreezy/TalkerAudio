@@ -20,6 +20,8 @@ let package = Package(
         .package(url: "https://github.com/SwiftyLab/AsyncObjects", from: "2.1.0"),
         .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-testing", from: "0.1.0"),
+        .package(url: "https://github.com/vector-im/opus-swift", from: "0.8.4"),
+        .package(url: "https://github.com/vector-im/ogg-swift", from: "0.8.3"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -41,6 +43,8 @@ let package = Package(
                 "AsyncObjects",
                 .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
                 .target(name: "MicrosoftCognitiveServicesSpeech"),
+                .product(name: "YbridOpus", package: "opus-swift"),
+                .product(name: "YbridOgg", package: "ogg-swift"),
             ]
         ),
         .testTarget(

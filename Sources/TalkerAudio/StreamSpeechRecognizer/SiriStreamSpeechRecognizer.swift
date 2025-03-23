@@ -170,7 +170,7 @@ public final class SiriStreamSpeechRecognizer: BaseSiriSpeechRecognizer, StreamS
     }
 
     func setup() {
-        recorder.audioInputMoreDataBlock = { [weak self] buf in
+        recorder.audioInputMoreDataBlock = { [weak self] buf, finish in
             guard let self, !buf.isEmpty else {
                 return
             }

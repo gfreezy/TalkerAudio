@@ -58,7 +58,7 @@ public func saveAudioBufferToDisk(name: String, buf: StreamAudioBuffer, format: 
     case .pcm:
         let buffer = try listOfPCMBytesToSingleAVAudioPCMBuffer(pcmDataList: buf.datas)
         return try saveAudioBufferToDisk(name: name, buf: buffer)
-    case .aac:
+    case .aac, .opus:
         let url = buildURLForAudio(named: name, format: format)
         try createDirectoryForAudio(url: url)
         FileManager.default.createFile(atPath: url.path(), contents: nil)

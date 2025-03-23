@@ -2,14 +2,15 @@ import AVFoundation
 import Foundation
 import TalkerCommon
 
-public final class AacAdtsEncoder {
+public final class AacAdtsEncoder: AudioEncoderProtocol {
     private var converter: AVAudioConverter?
     private var outputFormat: AVAudioFormat = AVAudioFormat()
 
-    public func setup(inputFormat: AVAudioFormat, bitRate: Int) throws {
+    public init(inputFormat: AVAudioFormat, bitRate: Int) throws {
         var streamDescription = AudioStreamBasicDescription(
             mSampleRate: inputFormat.sampleRate, mFormatID: kAudioFormatMPEG4AAC,
-            mFormatFlags: kAudioFormatFlagsAreAllClear, mBytesPerPacket: 0, mFramesPerPacket: 1024, mBytesPerFrame: 0,
+            mFormatFlags: kAudioFormatFlagsAreAllClear, mBytesPerPacket: 0, mFramesPerPacket: 1024,
+            mBytesPerFrame: 0,
             mChannelsPerFrame: 1, mBitsPerChannel: 0, mReserved: 0)
         guard let outputFormat = AVAudioFormat(streamDescription: &streamDescription) else {
             throw AacEncoderError.invalidInputFormat
@@ -20,7 +21,7 @@ public final class AacAdtsEncoder {
         }
         converter.bitRate = bitRate
         self.converter = converter
-//        debugLog("AacAdtsEncoder setup")
+        //        debugLog("AacAdtsEncoder setup")
     }
 
     /// Encode the input buffer to AAC ADTS format. Return emtpy Data if no enough data.
@@ -35,17 +36,17 @@ public final class AacAdtsEncoder {
             format: outputFormat, packetCapacity: 8, maximumPacketSize: 1024)
         // Convert PCM to AAC
         var error: NSError?
-//        infoLog("encode frameLength: \(pcmBuffer.frameLength)")
+        //        infoLog("encode frameLength: \(pcmBuffer.frameLength)")
         var inputPcmBuffer: AVAudioPCMBuffer? = pcmBuffer
         let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
             if let buf = inputPcmBuffer {
                 inputPcmBuffer = nil
                 outStatus.pointee = .haveData
-//                debugLog("provide buf: \(buf.frameLength)")
+                //                debugLog("provide buf: \(buf.frameLength)")
                 return buf
             } else {
                 outStatus.pointee = .noDataNow
-//                debugLog("no data now")
+                //                debugLog("no data now")
                 return nil
             }
         }
@@ -54,26 +55,31 @@ public final class AacAdtsEncoder {
         if status == .error, let error = error {
             throw TalkerError("convert error: \(error)")
         }
-//        debugLog("status: \(status)")
-        
+        //        debugLog("status: \(status)")
+
+        return try convert(compressedBuffer: outputBuffer)
+    }
+
+    private func convert(compressedBuffer: AVAudioCompressedBuffer) throws -> Data {
         let adtsHeaderLength = 7
-        let outputBufferSize = Int(outputBuffer.byteLength)
-        let packetCount = Int(outputBuffer.packetCount)
+        let outputBufferSize = Int(compressedBuffer.byteLength)
+        let packetCount = Int(compressedBuffer.packetCount)
         let dataCapacity = outputBufferSize + adtsHeaderLength * packetCount
-        
+
         if packetCount == 0 {
             return Data()
         }
-        
+
         var data = Data(capacity: dataCapacity)
 
-//        debugLog("packetCount: \(packetCount), outputBufferSize: \(outputBufferSize)")
-        guard let packetDescriptions = outputBuffer.packetDescriptions else {
+        //        debugLog("packetCount: \(packetCount), outputBufferSize: \(outputBufferSize)")
+        guard let packetDescriptions = compressedBuffer.packetDescriptions else {
             throw TalkerError("packetDescriptions is nil")
         }
         for i in 0..<packetCount {
             let desc = packetDescriptions[i]
-            outputBuffer.data.withMemoryRebound(to: UInt8.self, capacity: outputBufferSize) { pointer in
+            compressedBuffer.data.withMemoryRebound(to: UInt8.self, capacity: outputBufferSize) {
+                pointer in
                 let start = Int(desc.mStartOffset)
                 let length = Int(desc.mDataByteSize)
                 let frameLength = length + adtsHeaderLength
@@ -123,30 +129,24 @@ public final class AacAdtsEncoder {
         return sampleRates.firstIndex(of: Int(sampleRate)) ?? 4  // 默认使用 44100Hz 的索引
     }
 
-    public func finish(outputBuffer: AVAudioBuffer) throws {
+    public func finish() throws -> Data {
         guard let converter else {
             throw AacEncoderError.converterNotSetup
         }
 
+        let outputBuffer = AVAudioCompressedBuffer(
+            format: outputFormat, packetCapacity: 8, maximumPacketSize: 1024)
         var error: NSError?
         let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
             outStatus.pointee = .endOfStream
             return nil
         }
+
         let status = converter.convert(to: outputBuffer, error: &error, withInputFrom: inputBlock)
-        switch (status, error) {
-        case (.haveData, nil):
-            break
-        case (.endOfStream, nil):
-            break
-        case (.error, let error?):
-            throw AacEncoderError.conversionFailed(error)
-        case (.inputRanDry, let error?):
-            throw AacEncoderError.conversionFailed(error)
-        default:
-            throw AacEncoderError.conversionFailed(
-                TalkerError("Unknown conversion status: \(status)"))
+        if status == .error, let error = error {
+            throw TalkerError("convert error: \(error)")
         }
+        return try convert(compressedBuffer: outputBuffer)
     }
 }
 

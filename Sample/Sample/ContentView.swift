@@ -13,6 +13,7 @@ struct ContentView: View {
     @State var recorder = StreamAudioRecorder()
     @State var isRunning = false
     @State var buf = StreamAudioBuffer()
+    let format =  RecordFormat.opus(bitRate: 16000)
 
     var body: some View {
         VStack {
@@ -44,7 +45,7 @@ struct ContentView: View {
         }
         .padding()
         .onAppear {
-            recorder.audioInputMoreDataBlock = onRecordingData(_:)
+            recorder.audioInputMoreDataBlock = onRecordingData
         }
     }
 
@@ -56,7 +57,7 @@ struct ContentView: View {
 //            print("Failed to save audio buffer: \(error)")
 //        }
 
-        let url = buildURLForAudio(named: UUID().uuidString, format: .pcm)
+        let url = buildURLForAudio(named: UUID().uuidString, format: format)
         do {
             try FileManager.default.createDirectory(
                 at: url.deletingLastPathComponent(), withIntermediateDirectories: true,
@@ -92,14 +93,14 @@ struct ContentView: View {
 
     func start() {
         do {
-            try recorder.start(format: .aac(bitRate: 16000))
+            try recorder.start(format: format)
             isRunning = true
         } catch {
             print("Failed to start recording: \(error)")
         }
     }
 
-    func onRecordingData(_ data: Data) {
+    func onRecordingData(_ data: Data, finish: Bool) {
         print("onRecordingData: \(data.count)")
         buf.appendBytes(bytes: data)
     }
