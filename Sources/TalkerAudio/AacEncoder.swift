@@ -37,10 +37,10 @@ public final class AacAdtsEncoder: AudioEncoderProtocol {
         // Convert PCM to AAC
         var error: NSError?
         //        infoLog("encode frameLength: \(pcmBuffer.frameLength)")
-        var inputPcmBuffer: AVAudioPCMBuffer? = pcmBuffer
+        let inputPcmBuffer: Lock<AVAudioPCMBuffer?> = Lock(pcmBuffer)
         let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
-            if let buf = inputPcmBuffer {
-                inputPcmBuffer = nil
+            if let buf = inputPcmBuffer.value {
+                inputPcmBuffer.value = nil
                 outStatus.pointee = .haveData
                 //                debugLog("provide buf: \(buf.frameLength)")
                 return buf

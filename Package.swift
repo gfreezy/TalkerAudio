@@ -17,7 +17,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/gfreezy/talkercommon", from: "20241210.1.8"),
         .package(url: "https://github.com/gfreezy/StreamAudioPlayer", from: "20241212.0.3"),
-        .package(url: "https://github.com/SwiftyLab/AsyncObjects", from: "2.1.0"),
+        .package(url: "https://github.com/gfreezy/AsyncObjects", from: "2.1.1"),
         .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-testing", from: "0.1.0"),
         .package(url: "https://github.com/vector-im/opus-swift", from: "0.8.4"),

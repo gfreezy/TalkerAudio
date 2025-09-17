@@ -26,14 +26,30 @@ public protocol StreamSpeechRecognizerDelegate: NSObject {
     func receiveAudioBuffer(data: Data)
 }
 
-public struct SpeechRecognizerResult: Sendable {
+public struct SpeechRecognizerWord: Sendable, Codable, Equatable {
+    public let wordText: String
+    public let confidence: Double
+
+    enum CodingKeys: String, CodingKey {
+        case wordText = "word_text"
+        case confidence
+    }
+}
+
+public struct SpeechRecognizerResult: Sendable, Codable, Equatable {
 
     public let text: String
+    public let words: [SpeechRecognizerWord]?
     public let pronounceInfo: PronounceInfo?
 
-    public init(text: String, pronounceInfo: PronounceInfo? = nil) {
+    public init(text: String, words: [SpeechRecognizerWord]? = nil, pronounceInfo: PronounceInfo? = nil) {
         self.text = text
+        self.words = words
         self.pronounceInfo = pronounceInfo
+    }
+
+    public static func == (lhs: SpeechRecognizerResult, rhs: SpeechRecognizerResult) -> Bool {
+        lhs.text == rhs.text && lhs.words == rhs.words
     }
 }
 

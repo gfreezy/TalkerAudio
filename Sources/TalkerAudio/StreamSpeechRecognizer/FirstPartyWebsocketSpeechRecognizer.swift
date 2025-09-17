@@ -39,7 +39,7 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
 
     public func recognizedResult() async throws -> SpeechRecognizerResult {
         let response = try await recognizedFinalResult.wait()
-        return SpeechRecognizerResult(text: response.data, pronounceInfo: response.accuracy)
+        return SpeechRecognizerResult(text: response.data, words: response.words, pronounceInfo: response.accuracy)
     }
 
     public func startRecognition(
@@ -388,9 +388,10 @@ struct ResponseData: Decodable {
     var data: String
     var desc: String?
     var accuracy: PronounceInfo?
+    var words: [SpeechRecognizerWord]?
 
     static func createEmpty() -> Self {
-        return ResponseData(action: .error, data: "")
+        return ResponseData(action: .error, data: "", words: nil)
     }
 }
 

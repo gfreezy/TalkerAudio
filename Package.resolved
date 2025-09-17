@@ -1,13 +1,13 @@
 {
-  "originHash" : "f5cafd0c8e1f486fd9c46da758b248797929354cab757a1f85804f79da5ab3a4",
+  "originHash" : "1bfe633593d048bd7788ef0ef701e88c7d22ffaee8e7dcf48fcc2048e22f2e05",
   "pins" : [
     {
       "identity" : "asyncobjects",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SwiftyLab/AsyncObjects",
+      "location" : "https://github.com/gfreezy/AsyncObjects",
       "state" : {
-        "revision" : "93aacfba87d738ac94fb50c2a6768c43ec9d42eb",
-        "version" : "2.1.0"
+        "revision" : "10c9d752a000da218bb78bd5634cccf0a3c8b3f0",
+        "version" : "2.1.1"
       }
     },
     {
