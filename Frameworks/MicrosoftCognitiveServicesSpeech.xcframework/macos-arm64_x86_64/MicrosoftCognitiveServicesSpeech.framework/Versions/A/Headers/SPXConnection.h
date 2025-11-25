@@ -9,6 +9,7 @@
 #import "SPXSpeechSynthesizer.h"
 #import "SPXDialogServiceConnector.h"
 #import "SPXConnectionEventArgs.h"
+#import "SPXConnectionMessageEventArgs.h"
 
 /**
  * Connection is a proxy class for managing connection to the speech service of the specified Recognizer.
@@ -29,6 +30,7 @@ SPX_EXPORT
 @interface SPXConnection : NSObject
 
 typedef void (^SPXConnectionEventHandler)(SPXConnection* _Nonnull, SPXConnectionEventArgs * _Nonnull);
+typedef void (^SPXConnectionMessageEventHandler)(SPXConnection* _Nonnull, SPXConnectionMessageEventArgs * _Nonnull);
 
 /**
  * Gets the Connection instance from the specified recognizer.
@@ -146,10 +148,16 @@ NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
 - (void)addDisconnectedEventHandler:(nonnull SPXConnectionEventHandler)eventHandler;
 
 /**
+ * Subscribes to the ConnectionMessageReceived event which indicates that a message is received from the service.
+ * In order to receive the ConnectionMessageReceived event after subscribing to it, the Connection object itself 
+ * needs to be alive. If the Connection object owning this event is out of its life time, all subscribed events 
+ * won't be delivered.
+ */
+- (void)addMessageReceivedEventHandler:(nonnull SPXConnectionMessageEventHandler)eventHandler;
+
+/**
  * Appends a parameter in a message to service.
  * Added in version 1.9.0.
- *
- * Note: This method doesn't work for the connection of SPXSpeechSynthesizer.
  *
  * @param path The path of the message.
  * @param propertyName The propertyName of the message.
@@ -162,8 +170,6 @@ NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
  * Appends a parameter in a message to service.
  * Added in version 1.17.0.
  *
- * Note: This method doesn't work for the connection of SPXSpeechSynthesizer.
- *
  * @param path The path of the message.
  * @param propertyName The propertyName of the message.
  * @param propertyValue The propertyValue of the message as a json string.
@@ -175,8 +181,6 @@ NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
  * Send message to service.
  * Added in version 1.9.0.
  *
- * Note: This method doesn't work for the connection of SPXSpeechSynthesizer.
- *
  * @param path The path of the message.
  * @param payload The payload of the message as a json string.
  */
@@ -186,8 +190,6 @@ NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
 /**
  * Send message to service.
  * Added in version 1.9.0.
- *
- * Note: This method doesn't work for the connection of SPXSpeechSynthesizer.
  *
  * @param path The path of the message.
  * @param payload The payload of the message as a json string.

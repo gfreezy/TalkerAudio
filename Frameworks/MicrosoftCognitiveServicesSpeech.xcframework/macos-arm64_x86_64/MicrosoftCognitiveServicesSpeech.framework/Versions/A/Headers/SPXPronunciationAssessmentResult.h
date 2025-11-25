@@ -8,6 +8,16 @@
 #import "SPXTimingResult.h"
 
 /**
+ * Represents content assessment result
+ * Added in version 1.33.0
+ */
+SPX_EXPORT
+@interface SPXContentAssessmentResult : NSObject
+
+
+@end
+
+/**
  * Represents pronunciation assessment result
  * Added in version 1.14.0
  */
@@ -35,6 +45,11 @@ SPX_EXPORT
  * The score indicating the fluency of the given speech.
  */
 @property (readonly)double fluencyScore;
+
+/**
+ * The prosody score.
+ */
+@property (readonly)double prosodyScore;
 
 /**
  * Word level pronunciation assessment results.

@@ -235,8 +235,6 @@ public final class StreamAudioRecorder: Sendable {
             self.audioEncoder.value = opusEncoder
         case .pcm:
             break
-        default:
-            throw MessageError("Unsupported format: \(format)")
         }
 
         let callback: AudioQueueInputCallback = {

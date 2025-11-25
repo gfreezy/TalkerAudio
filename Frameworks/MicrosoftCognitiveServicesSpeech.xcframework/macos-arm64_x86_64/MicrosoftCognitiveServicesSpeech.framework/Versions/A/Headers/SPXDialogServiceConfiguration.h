@@ -73,8 +73,7 @@ SPX_EXPORT
  * The specialized configuration type used to initialize a DialogServiceConnector that will connect to a Bot Framework
  * bot using the Direct Line Speech channel.
  *
- * See also: <a href="https://docs.microsoft.com/azure/cognitive-services/speech-service/direct-line-speech">
- * Direct Line Speech</a>.
+ * See also: [What is Direct Line Speech?](/azure/cognitive-services/speech-service/direct-line-speech).
  */
 SPX_EXPORT
 @interface SPXDialogBotFrameworkConfiguration : SPXDialogServiceConfiguration
@@ -231,8 +230,7 @@ NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
  * The instance interface type used to initialize a DialogServiceConnector that will connect to a Custom Commands
  * application as published from Speech Studio for a speech service resource.
  *
- * See also: <a href="https://docs.microsoft.com/azure/cognitive-services/speech-service/custom-commands">
- * Custom Commands</a>.
+ * See also: [What is Custom Commands?](/azure/cognitive-services/speech-service/custom-commands).
  */
 SPX_EXPORT
 @interface SPXDialogCustomCommandsConfiguration : SPXDialogServiceConfiguration

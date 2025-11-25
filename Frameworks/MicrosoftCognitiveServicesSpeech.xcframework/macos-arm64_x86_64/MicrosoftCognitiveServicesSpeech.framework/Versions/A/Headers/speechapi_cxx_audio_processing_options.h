@@ -9,6 +9,7 @@
 #include <vector>
 #include <memory>
 #include "speechapi_cxx_common.h"
+#include "speechapi_cxx_string_helpers.h"
 #include "speechapi_cxx_smart_handle.h"
 #include "speechapi_c_audio_processing_options.h"
 
@@ -20,7 +21,7 @@ namespace Audio {
 
 /// <summary>
 /// Types of preset microphone array geometries.
-/// Check https://docs.microsoft.com/azure/cognitive-services/speech-service/speech-devices-sdk-microphone for details.
+/// See [Microphone Array Recommendations](/azure/cognitive-services/speech-service/speech-devices-sdk-microphone) for more details.
 /// </summary>
 enum class PresetMicrophoneArrayGeometry
 {
@@ -161,7 +162,11 @@ public:
     /// Creates a new instance using the provided handle.
     /// </summary>
     /// <param name="hoptions">A handle to audio processing options.</param>
-    explicit AudioProcessingOptions(SPXAUDIOPROCESSINGOPTIONSHANDLE hoptions) : m_hoptions(hoptions) {}
+    explicit AudioProcessingOptions(SPXAUDIOPROCESSINGOPTIONSHANDLE hoptions)
+        : m_hoptions(hoptions)
+    {
+        SPX_THROW_ON_FAIL(audio_processing_options_get_property_bag(m_hoptions, &m_propertybag));
+    }
 
     /// <summary>
     /// Destructs an instance of the AudioProcessingOptions class.
@@ -179,6 +184,11 @@ public:
     /// </summary>
     /// <param name="audioProcessingFlags">Specifies flags to control the audio processing performed by Speech SDK. It is bitwise OR of AUDIO_INPUT_PROCESSING_XXX constants.</param>
     /// <returns>The newly created AudioProcessingOptions wrapped inside a std::shared_ptr.</returns>
+    /// <remarks>
+    /// This function should only be used when the audio input is from a microphone array.
+    /// On Windows, this function will try to query the microphone array geometry from the audio driver. Audio data is also read from speaker reference channel.
+    /// On Linux, it assumes that the microphone is a single channel microphone.
+    /// </remarks>
     static std::shared_ptr<AudioProcessingOptions> Create(int audioProcessingFlags)
     {
         SPXAUDIOPROCESSINGOPTIONSHANDLE hoptions = SPXHANDLE_INVALID;
@@ -246,7 +256,7 @@ public:
     /// <returns>A value of type PresetMicrophoneArrayGeometry enum.</returns>
     PresetMicrophoneArrayGeometry GetPresetMicrophoneArrayGeometry() const
     {
-        PresetMicrophoneArrayGeometry microphoneArrayGeometry;
+        PresetMicrophoneArrayGeometry microphoneArrayGeometry = PresetMicrophoneArrayGeometry::Uninitialized;
         SPX_THROW_ON_FAIL(audio_processing_options_get_preset_microphone_array_geometry(m_hoptions, (AudioProcessingOptions_PresetMicrophoneArrayGeometry*)&microphoneArrayGeometry));
         return microphoneArrayGeometry;
     }
@@ -257,7 +267,7 @@ public:
     /// <returns>A value of type MicrophoneArrayType enum.</returns>
     MicrophoneArrayType GetMicrophoneArrayType() const
     {
-        MicrophoneArrayType microphoneArrayType;
+        MicrophoneArrayType microphoneArrayType = MicrophoneArrayType::Linear;
         SPX_THROW_ON_FAIL(audio_processing_options_get_microphone_array_type(m_hoptions, (AudioProcessingOptions_MicrophoneArrayType*)&microphoneArrayType));
         return microphoneArrayType;
     }
@@ -304,9 +314,30 @@ public:
     /// <returns>A value of type SpeakerReferenceChannel enum.</returns>
     SpeakerReferenceChannel GetSpeakerReferenceChannel() const
     {
-        SpeakerReferenceChannel speakerReferenceChannel;
+        SpeakerReferenceChannel speakerReferenceChannel = SpeakerReferenceChannel::None;
         SPX_THROW_ON_FAIL(audio_processing_options_get_speaker_reference_channel(m_hoptions, (AudioProcessingOptions_SpeakerReferenceChannel*)&speakerReferenceChannel));
         return speakerReferenceChannel;
+    }
+
+    /// <summary>
+    /// Sets a property value by name.
+    /// </summary>
+    /// <param name="name">The property name.</param>
+    /// <param name="value">The property value.</param>
+    void SetProperty(const SPXSTRING& name, const SPXSTRING& value)
+    {
+        property_bag_set_string(m_propertybag, -1, Utils::ToUTF8(name).c_str(), Utils::ToUTF8(value).c_str());
+    }
+
+    /// <summary>
+    /// Gets a property value by name.
+    /// </summary>
+    /// <param name="name">The parameter name.</param>
+    /// <returns>The property value.</returns>
+    SPXSTRING GetProperty(const SPXSTRING& name) const
+    {
+        const char* value = property_bag_get_string(m_propertybag, -1, Utils::ToUTF8(name).c_str(), "");
+        return Utils::ToSPXString(Utils::CopyAndFreePropertyString(value));
     }
 
 private:
@@ -317,6 +348,11 @@ private:
     /// Internal member variable that holds the smart handle.
     /// </summary>
     SmartHandle<SPXAUDIOPROCESSINGOPTIONSHANDLE, &audio_processing_options_release> m_hoptions;
+
+    /// <summary>
+    /// Internal member variable that holds the properties of the audio processing options.
+    /// </summary>
+    SmartHandle<SPXPROPERTYBAGHANDLE, &property_bag_release> m_propertybag;
 };
 
 } } } } // Microsoft::CognitiveServices::Speech::Audio

@@ -5,8 +5,6 @@
 
 #pragma once
 
-// TODO: TFS#3671215 - Vision: C/C++ azac_api* files are in shared include directory, speech and vision share
-
 #ifndef AZAC_SUPPRESS_COMMON_INCLUDE_FROM_DIAGNOSTICS
 #define AZAC_SUPPRESS_DIAGNOSTICS_INCLUDE_FROM_COMMON
 #include "azac_api_c_common.h"
@@ -29,6 +27,13 @@ AZAC_API diagnostics_log_stop_logging();
 typedef void(*DIAGNOSTICS_CALLBACK_FUNC)(const char *logLine);
 AZAC_API diagnostics_logmessage_set_callback(DIAGNOSTICS_CALLBACK_FUNC callback);
 AZAC_API diagnostics_logmessage_set_filters(const char* filters);
+
+//
+// APIs to managed eventSource events
+//
+typedef void(*DIAGNOSTICS_EVENTSOURCE_CALLBACK_FUNC)(const char *logLine, const int level);
+AZAC_API diagnostics_eventsource_logmessage_set_callback(DIAGNOSTICS_EVENTSOURCE_CALLBACK_FUNC callback);
+AZAC_API diagnostics_eventsource_logmessage_set_filters(const char* filters);
 
 //
 // APIs to manage logging to memory

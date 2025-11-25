@@ -5,8 +5,6 @@
 
 #pragma once
 
-// TODO: TFS#3671215 - Vision: C/C++ azac_api* files are in shared include directory, speech and vision share
-
 #include "azac_api_c_common.h"
 #include "azac_api_c_error.h"
 #include "azac_debug.h"
@@ -40,7 +38,7 @@
 namespace Azure {
 namespace AI {
 namespace Core {
-namespace Details {
+namespace _detail {
 
 template <class T>
 class ProtectedAccess : public T

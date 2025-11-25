@@ -30,77 +30,182 @@ typedef void (^SPXConversationTranscriptionCanceledEventHandler)(SPXConversation
 @property (nonatomic, copy, nullable)NSString *authorizationToken;
 
 /**
- * Initializes a new instance of a conversation transcriber using the default configuration.
- * @return a conversation transcriber instance.
- */
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnullability"
-- (nullable instancetype)init
-NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
-#pragma clang diagnostic pop
-/**
- * Initializes a new instance of a conversation transcriber using the default configuration.
+ * Initializes a new instance of a conversation transcriber.
  *
- * @param outError error information.
+ * @param speechConfiguration speech configuration for conversation transcription.
  * @return a conversation transcriber instance.
  */
-- (nullable instancetype)init:(NSError * _Nullable * _Nullable)outError;
+- (nullable instancetype)init:(nonnull SPXSpeechConfiguration *)speechConfiguration
+NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
 
 /**
- * Initializes a new instance of a conversation transcriber using the specified audio configuration.
+ * Initializes a new instance of conversation transcriber using the specified audio config.
  *
+ * @param speechConfiguration speech configuration for conversation transcription.
  * @param audioConfiguration audio configuration.
  * @return a conversation transcriber instance.
  */
-- (nullable instancetype)initWithAudioConfiguration:(nonnull SPXAudioConfiguration *)audioConfiguration
+- (nullable instancetype)initWithSpeechConfiguration:(nonnull SPXSpeechConfiguration *)speechConfiguration audioConfiguration:(nonnull SPXAudioConfiguration *)audioConfiguration
 NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
 
 /**
- * Initializes a new instance of a conversation transcriber using the specified audio configuration.
+ * Initializes a new instance of conversation transcriber using the specified audio config.
  *
+ * @param speechConfiguration speech configuration for conversation transcription.
+ * @param audioConfiguration audio configuration.
+ * @param outError error information.
+ * @return a conversation transcriber instance.
+ */
+- (nullable instancetype)initWithSpeechConfiguration:(nonnull SPXSpeechConfiguration *)speechConfiguration audioConfiguration:(nonnull SPXAudioConfiguration *)audioConfiguration error:(NSError * _Nullable * _Nullable)outError;
+
+/**
+ * Initializes a new instance of conversation transcriber using the specified source language.
+ *
+ * @param speechConfiguration speech configuration for conversation transcription.
+ * @param language source language.
+ * @return a conversation transcriber instance.
+ */
+- (nullable instancetype)initWithSpeechConfiguration:(nonnull SPXSpeechConfiguration *)speechConfiguration language:(nonnull NSString *)language
+NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
+
+/**
+ * Initializes a new instance of conversation transcriber using the specified source language.
+ *
+ * @param speechConfiguration speech configuration for conversation transcription.
+ * @param language source language.
+ * @param outError error information.
+ * @return a conversation transcriber instance.
+ */
+- (nullable instancetype)initWithSpeechConfiguration:(nonnull SPXSpeechConfiguration *)speechConfiguration
+                                            language:(nonnull NSString *)language
+                                               error:(NSError * _Nullable * _Nullable)outError;
+
+/**
+ * Initializes a new instance of conversation transcriber using the specified source language and audio configuration.
+ *
+ * @param speechConfiguration speech configuration for conversation transcription.
+ * @param language source language.
  * @param audioConfiguration audio configuration.
  * @return a conversation transcriber instance.
  */
-- (nullable instancetype)initWithAudioConfiguration:(nonnull SPXAudioConfiguration *)audioConfiguration error:(NSError * _Nullable * _Nullable)outError;
-
-/**
- * Join a conversation.
- * A conversation transcriber must join a conversation before transcribing audio.
- * 
- * @param completedHandler the block function to be called when async operation has been completed.
- * @param conversation speech configuration.
- */
-- (void)joinConversationAsync:(nonnull void (^)(BOOL joined, NSError * _Nullable))completedHandler conversation:(nonnull SPXConversation *)conversation
+- (nullable instancetype)initWithSpeechConfiguration:(nonnull SPXSpeechConfiguration *)speechConfiguration 
+                                            language:(nonnull NSString *)language
+                                  audioConfiguration:(nonnull SPXAudioConfiguration *)audioConfiguration
 NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
 
 /**
- * Join a conversation.
- * A conversation transcriber must join a conversation before transcribing audio.
- * 
- * @param completedHandler the block function to be called when async operation has been completed.
- * @param conversation speech configuration.
- * @param outError error information.
- */
-- (BOOL)joinConversationAsync:(nonnull void (^)(BOOL joined, NSError * _Nullable))completedHandler conversation:(nonnull SPXConversation *)conversation error:(NSError * _Nullable * _Nullable)outError;
-
-/**
- * Leave a conversation.
- * After leaving a conversation, no transcribing and transcribed events will be sent out.
+ * Initializes a new instance of conversation transcriber using the specified source language and audio configuration.
  *
- * @param completedHandler the block function to be called when async operation has been completed.
+ * @param speechConfiguration speech configuration for conversation transcription.
+ * @param language source language.
+ * @param audioConfiguration audio configuration.
+ * @param outError error information.
+ * @return a conversation transcriber instance.
  */
-- (void)leaveConversationAsync:(nonnull void (^)(BOOL left, NSError * _Nullable))completedHandler
+- (nullable instancetype)initWithSpeechConfiguration:(nonnull SPXSpeechConfiguration *)speechConfiguration
+                                            language:(nonnull NSString *)language
+                                  audioConfiguration:(nonnull SPXAudioConfiguration *)audioConfiguration
+                                               error:(NSError * _Nullable * _Nullable)outError;
+
+/**
+ * Initializes a new instance of conversation transcriber using the specified source language configuration.
+ *
+ * @param speechConfiguration speech configuration for conversation transcription.
+ * @param sourceLanguageConfiguration the source language configuration.
+ * @return a conversation transcriber instance.
+ */
+- (nullable instancetype)initWithSpeechConfiguration:(nonnull SPXSpeechConfiguration *)speechConfiguration
+                         sourceLanguageConfiguration:(nonnull SPXSourceLanguageConfiguration *)sourceLanguageConfiguration
 NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
 
 /**
- * Leave a conversation.
- * After leaving a conversation, no transcribing and transcribed events will be sent out.
- * 
- * @param completedHandler the block function to be called when async operation has been completed.
+ * Initializes a new instance of conversation transcriber using the specified source language configuration.
+ *
+ * @param speechConfiguration speech configuration for conversation transcription.
+ * @param sourceLanguageConfiguration the source language configuration.
  * @param outError error information.
+ * @return a conversation transcriber instance.
  */
-- (BOOL)leaveConversationAsync:(nonnull void (^)(BOOL left, NSError * _Nullable))completedHandler error:(NSError * _Nullable * _Nullable)outError;
+- (nullable instancetype)initWithSpeechConfiguration:(nonnull SPXSpeechConfiguration *)speechConfiguration
+                         sourceLanguageConfiguration:(nonnull SPXSourceLanguageConfiguration *)sourceLanguageConfiguration
+                                               error:(NSError * _Nullable * _Nullable)outError;
 
+/**
+ * Initializes a new instance of conversation transcriber using the specified source language configuration and audio configuration.
+ *
+ * @param speechConfiguration speech configuration for conversation transcription.
+ * @param sourceLanguageConfiguration the source language configuration.
+ * @param audioConfiguration audio configuration.
+ * @return a conversation transcriber instance.
+ */
+- (nullable instancetype)initWithSpeechConfiguration:(nonnull SPXSpeechConfiguration *)speechConfiguration
+                         sourceLanguageConfiguration:(nonnull SPXSourceLanguageConfiguration *)sourceLanguageConfiguration
+                                  audioConfiguration:(nonnull SPXAudioConfiguration *)audioConfiguration
+NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
+
+/**
+ * Initializes a new instance of conversation transcriber using the specified source language configuration and audio configuration.
+ *
+ * @param speechConfiguration speech configuration for conversation transcription.
+ * @param sourceLanguageConfiguration the source language configuration.
+ * @param audioConfiguration audio configuration.
+ * @param outError error information.
+ * @return a conversation transcriber instance.
+ */
+- (nullable instancetype)initWithSpeechConfiguration:(nonnull SPXSpeechConfiguration *)speechConfiguration 
+                         sourceLanguageConfiguration:(nonnull SPXSourceLanguageConfiguration *)sourceLanguageConfiguration
+                                  audioConfiguration:(nonnull SPXAudioConfiguration *)audioConfiguration
+                                               error:(NSError * _Nullable * _Nullable)outError;
+
+/**
+ * Initializes a new instance of conversation transcriber using the specified configuration for auto language detection.
+ *
+ * @param speechConfiguration speech configuration for conversation transcription.
+ * @param autoDetectSourceLanguageConfiguration the configuration for auto language detection.
+ * @return a conversation transcriber instance..
+ */
+- (nullable instancetype)initWithSpeechConfiguration:(nonnull SPXSpeechConfiguration *)speechConfiguration
+               autoDetectSourceLanguageConfiguration:(nonnull SPXAutoDetectSourceLanguageConfiguration *)autoDetectSourceLanguageConfiguration
+NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
+
+/**
+ * Initializes a new instance of conversation transcriber using the specified configuration for auto language detection.
+ *
+ * @param speechConfiguration speech configuration for conversation transcription.
+ * @param autoDetectSourceLanguageConfiguration the configuration for auto language detection.
+ * @param outError error information.
+ * @return a conversation transcriber instance.
+ */
+- (nullable instancetype)initWithSpeechConfiguration:(nonnull SPXSpeechConfiguration *)speechConfiguration
+               autoDetectSourceLanguageConfiguration:(nonnull SPXAutoDetectSourceLanguageConfiguration *)autoDetectSourceLanguageConfiguration
+                                               error:(NSError * _Nullable * _Nullable)outError;
+
+/**
+ * Initializes a new instance of conversation transcriber using the specified configuration for auto language detection and audio configuration.
+ *
+ * @param speechConfiguration speech configuration for conversation transcription.
+ * @param autoDetectSourceLanguageConfiguration the configuration for auto language detection.
+ * @param audioConfiguration audio configuration.
+ * @return a conversation transcriber instance.
+ */
+- (nullable instancetype)initWithSpeechConfiguration:(nonnull SPXSpeechConfiguration *)speechConfiguration
+               autoDetectSourceLanguageConfiguration:(nonnull SPXAutoDetectSourceLanguageConfiguration *)autoDetectSourceLanguageConfiguration
+                                  audioConfiguration:(nonnull SPXAudioConfiguration *)audioConfiguration
+NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
+
+/**
+ * Initializes a new instance of conversation transcriber using the specified configuration for auto language detection and audio configuration.
+ *
+ * @param speechConfiguration speech configuration for conversation transcription.
+ * @param autoDetectSourceLanguageConfiguration the configuration for auto language detection.
+ * @param audioConfiguration audio configuration.
+ * @param outError error information.
+ * @return a conversation transcriber instance.
+ */
+- (nullable instancetype)initWithSpeechConfiguration:(nonnull SPXSpeechConfiguration *)speechConfiguration
+               autoDetectSourceLanguageConfiguration:(nonnull SPXAutoDetectSourceLanguageConfiguration *)autoDetectSourceLanguageConfiguration
+                                  audioConfiguration:(nonnull SPXAudioConfiguration *)audioConfiguration
+                                               error:(NSError * _Nullable * _Nullable)outError;
 /**
  * Starts conversation transcribing on a continuous audio stream, until stopTranscribingAsync() is called.
  * User must subscribe to events to receive transcription results.

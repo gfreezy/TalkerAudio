@@ -103,7 +103,7 @@ public:
     /// <returns>Current status</returns>
     StreamStatus GetStatus()
     {
-        Stream_Status status;
+        Stream_Status status = StreamStatus_Unknown;
         SPX_THROW_ON_FAIL(audio_data_stream_get_status(m_haudioStream, &status));
         return (StreamStatus)status;
     }
@@ -127,6 +127,15 @@ public:
     bool CanReadData(uint32_t pos, uint32_t bytesRequested)
     {
         return audio_data_stream_can_read_data_from_position(m_haudioStream, bytesRequested, pos);
+    }
+
+    /// <summary>
+    /// Get the available size of the audio data stream.
+    /// </summary>
+    /// <returns>Available size of the audio data stream.</returns>
+    uint32_t GetAvailableSize()
+    {
+        return audio_data_stream_get_available_size(m_haudioStream);
     }
 
     /// <summary>

@@ -14,8 +14,6 @@ enum Result_Reason
     ResultReason_Canceled = 1,
     ResultReason_RecognizingSpeech = 2,
     ResultReason_RecognizedSpeech = 3,
-    ResultReason_RecognizingIntent = 4,
-    ResultReason_RecognizedIntent = 5,
     ResultReason_TranslatingSpeech = 6,
     ResultReason_TranslatedSpeech = 7,
     ResultReason_SynthesizingAudio = 8,
@@ -55,7 +53,8 @@ enum Result_NoMatchReason
     NoMatchReason_NotRecognized = 1,
     NoMatchReason_InitialSilenceTimeout = 2,
     NoMatchReason_InitialBabbleTimeout = 3,
-    NoMatchReason_KeywordNotRecognized = 4
+    NoMatchReason_KeywordNotRecognized = 4,
+    NoMatchReason_EndSilenceTimeout = 5
 };
 typedef enum Result_NoMatchReason Result_NoMatchReason;
 
@@ -78,6 +77,7 @@ SPXAPI result_get_result_id(SPXRESULTHANDLE hresult, char* pszResultId, uint32_t
 SPXAPI result_get_text(SPXRESULTHANDLE hresult, char* pszText, uint32_t cchText);
 SPXAPI result_get_offset(SPXRESULTHANDLE hresult, uint64_t* offset);
 SPXAPI result_get_duration(SPXRESULTHANDLE hresult, uint64_t* duration);
+SPXAPI result_get_channel(SPXRESULTHANDLE hresult, uint32_t* channel);
 
 SPXAPI result_get_property_bag(SPXRESULTHANDLE hresult, SPXPROPERTYBAGHANDLE* hpropbag);
 

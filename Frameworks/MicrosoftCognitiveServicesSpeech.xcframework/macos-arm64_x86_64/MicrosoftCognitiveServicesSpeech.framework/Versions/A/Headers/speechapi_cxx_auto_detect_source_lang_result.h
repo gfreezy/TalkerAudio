@@ -9,6 +9,7 @@
 #include "speechapi_cxx_string_helpers.h"
 #include "speechapi_c.h"
 #include "speechapi_cxx_speech_recognition_result.h"
+#include "speechapi_cxx_conversation_transcription_result.h"
 #include "speechapi_cxx_translation_result.h"
 
 namespace Microsoft {
@@ -26,9 +27,33 @@ public:
     /// <summary>
     /// Creates an instance of AutoDetectSourceLanguageResult object for the speech recognition result.
     /// </summary>
-    /// <param name="result">The speech recongition result.</param>
+    /// <param name="result">The speech recognition result.</param>
     /// <returns>A shared pointer to AutoDetectSourceLanguageResult.</returns>
     static std::shared_ptr<AutoDetectSourceLanguageResult> FromResult(std::shared_ptr<SpeechRecognitionResult> result)
+    {
+        SPX_THROW_HR_IF(SPXERR_INVALID_ARG, result == nullptr);
+        auto ptr = new AutoDetectSourceLanguageResult(result);
+        return std::shared_ptr<AutoDetectSourceLanguageResult>(ptr);
+    }
+
+    /// <summary>
+    /// Creates an instance of AutoDetectSourceLanguageResult object for the speech translation result.
+    /// </summary>
+    /// <param name="result">The speech translation result.</param>
+    /// <returns>A shared pointer to AutoDetectSourceLanguageResult.</returns>
+    static std::shared_ptr<AutoDetectSourceLanguageResult> FromResult(std::shared_ptr<Translation::TranslationRecognitionResult> result)
+    {
+        SPX_THROW_HR_IF(SPXERR_INVALID_ARG, result == nullptr);
+        auto ptr = new AutoDetectSourceLanguageResult(result);
+        return std::shared_ptr<AutoDetectSourceLanguageResult>(ptr);
+    }
+
+    /// <summary>
+    /// Creates an instance of AutoDetectSourceLanguageResult object for the convesation transcription result.
+    /// </summary>
+    /// <param name="result">The conversation transcription result.</param>
+    /// <returns>A shared pointer to AutoDetectSourceLanguageResult.</returns>
+    static std::shared_ptr<AutoDetectSourceLanguageResult> FromResult(std::shared_ptr<Microsoft::CognitiveServices::Speech::Transcription::ConversationTranscriptionResult> result)
     {
         SPX_THROW_HR_IF(SPXERR_INVALID_ARG, result == nullptr);
         auto ptr = new AutoDetectSourceLanguageResult(result);

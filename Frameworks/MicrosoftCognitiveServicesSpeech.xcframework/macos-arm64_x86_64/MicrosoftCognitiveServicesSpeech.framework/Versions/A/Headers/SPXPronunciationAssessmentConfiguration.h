@@ -16,8 +16,8 @@ SPX_EXPORT
 
 /**
  * Initializes an instance of the SPXPronunciationAssessmentConfiguration.
- * For the parameters details, see
- * https://docs.microsoft.com/azure/cognitive-services/speech-service/rest-speech-to-text#pronunciation-assessment-parameters
+ * For parameter details, see the table
+ * [Pronunciation assessment parameters](/azure/cognitive-services/speech-service/rest-speech-to-text-short#pronunciation-assessment-parameters).
  *
  * @param referenceText The reference text.
  * @param gradingSystem The point system for score calibration.
@@ -34,8 +34,8 @@ NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
 
 /**
  * Initializes an instance of the SPXPronunciationAssessmentConfiguration.
- * For the parameters details, see
- * https://docs.microsoft.com/azure/cognitive-services/speech-service/rest-speech-to-text#pronunciation-assessment-parameters
+ * For parameter details, see the table
+ * [Pronunciation assessment parameters](/azure/cognitive-services/speech-service/rest-speech-to-text-short#pronunciation-assessment-parameters).
  *
  * @param referenceText The reference text.
  * @param gradingSystem The point system for score calibration.
@@ -53,8 +53,8 @@ NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
 
 /**
  * Initializes an instance of the SPXPronunciationAssessmentConfiguration.
- * For the parameters details, see
- * https://docs.microsoft.com/azure/cognitive-services/speech-service/rest-speech-to-text#pronunciation-assessment-parameters
+ * For parameter details, see the table
+ * [Pronunciation assessment parameters](/azure/cognitive-services/speech-service/rest-speech-to-text-short#pronunciation-assessment-parameters).
  *
  * @param referenceText The reference text.
  * @param gradingSystem The point system for score calibration.
@@ -69,8 +69,8 @@ NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
 
 /**
  * Initializes an instance of the SPXPronunciationAssessmentConfiguration.
- * For the parameters details, see
- * https://docs.microsoft.com/azure/cognitive-services/speech-service/rest-speech-to-text#pronunciation-assessment-parameters
+ * For parameter details, see the table
+ * [Pronunciation assessment parameters](/azure/cognitive-services/speech-service/rest-speech-to-text-short#pronunciation-assessment-parameters).
  *
  * @param referenceText The reference text.
  * @param gradingSystem The point system for score calibration.
@@ -86,8 +86,8 @@ NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
 
 /**
  * Initializes an instance of the SPXPronunciationAssessmentConfiguration.
- * For the parameters details, see
- * https://docs.microsoft.com/azure/cognitive-services/speech-service/rest-speech-to-text#pronunciation-assessment-parameters
+ * For parameter details, see the table
+ * [Pronunciation assessment parameters](/azure/cognitive-services/speech-service/rest-speech-to-text-short#pronunciation-assessment-parameters).
  *
  * @param referenceText The reference text.
  *
@@ -98,8 +98,8 @@ NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
 
 /**
  * Initializes an instance of the SPXPronunciationAssessmentConfiguration.
- * For the parameters details, see
- * https://docs.microsoft.com/azure/cognitive-services/speech-service/rest-speech-to-text#pronunciation-assessment-parameters
+ * For parameter details, see the table
+ * [Pronunciation assessment parameters](/azure/cognitive-services/speech-service/rest-speech-to-text-short#pronunciation-assessment-parameters).
  *
  * @param referenceText The reference text.
  * @param outError error information.
@@ -150,6 +150,13 @@ NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
  */
 @property (nonatomic)NSInteger nbestPhonemeCount;
 - (NSInteger)nbestPhonemeCount UNAVAILABLE_ATTRIBUTE;
+
+/**
+ * Whether to enable prosoody assessment.
+ *
+ * Added in version 1.33.0.
+ */
+- (void)enableProsodyAssessment;
 
 /**
  * Gets the json string of pronunciation assessment parameters.

@@ -22,8 +22,8 @@
  * dialog activity data.
  *
  * See also: 
- * [Integrate with a client application using Speech SDK](/azure/cognitive-services/speech-service/how-to-custom-commands-setup-speech-sdk)
- * [Voice assistants frequently asked questions](/azure/cognitive-services/speech-service/faq-voice-assistants)
+ * [Integrate with a client application using Speech SDK](/azure/cognitive-services/speech-service/how-to-custom-commands-setup-speech-sdk),
+ * [Voice assistants frequently asked questions](/azure/cognitive-services/speech-service/faq-voice-assistants),
  * [What is Custom Commands?](/azure/cognitive-services/speech-service/custom-commands)
  */
 SPX_EXPORT
@@ -242,8 +242,8 @@ NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
  * accomplished via the activity payload itself using the capabilities of the dialog implementation used.
  *
  * See also:
- * <a href="https://github.com/microsoft/botframework-sdk/blob/main/specs/botframework-activity/botframework-activity.md">Bot Framework -- Activity schema</a>
- * <a href="https://docs.microsoft.com/azure/cognitive-services/speech-service/quickstarts/voice-assistants">Voice assistant quickstart (with SendActivityAsync example)</a>
+ * <a href="https://github.com/microsoft/botframework-sdk/blob/main/specs/botframework-activity/botframework-activity.md">Bot Framework -- Activity schema</a>,
+ * [Quickstart: Create a custom voice assistant](/azure/cognitive-services/speech-service/quickstarts/voice-assistants) (with sendActivity example)</a>
  *
  * @param activity the serialized payload of an activity to send.
  * @param outError error information.
@@ -267,8 +267,8 @@ NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
  * accomplished via the activity payload itself using the capabilities of the dialog implementation used.
  *
  * See also:
- * <a href="https://github.com/microsoft/botframework-sdk/blob/main/specs/botframework-activity/botframework-activity.md">Bot Framework -- Activity schema</a>
- * <a href="https://docs.microsoft.com/azure/cognitive-services/speech-service/quickstarts/voice-assistants">Voice assistant quickstart (with SendActivityAsync example)</a>
+ * <a href="https://github.com/microsoft/botframework-sdk/blob/main/specs/botframework-activity/botframework-activity.md">Bot Framework -- Activity schema</a>,
+ * [Quickstart: Create a custom voice assistant](/azure/cognitive-services/speech-service/quickstarts/voice-assistants) (with sendActivity example)</a>
  *
  * @param activity the serialized payload of an activity to send.
  * @return an interaction identifier acquired when the activity is sent to the service. This may occur before the
@@ -314,8 +314,8 @@ NS_SWIFT_UNAVAILABLE("Use the method with Swift-compatible error handling.");
  * accomplished via the activity payload itself using the capabilities of the dialog implementation used.
  *
  * See also:
- * <a href="https://github.com/microsoft/botframework-sdk/blob/main/specs/botframework-activity/botframework-activity.md">Bot Framework -- Activity schema</a>
- * <a href="https://docs.microsoft.com/azure/cognitive-services/speech-service/quickstarts/voice-assistants">Voice assistant quickstart (with SendActivityAsync example)</a>
+ * <a href="https://github.com/microsoft/botframework-sdk/blob/main/specs/botframework-activity/botframework-activity.md">Bot Framework -- Activity schema</a>,
+ * [Quickstart: Create a custom voice assistant](/azure/cognitive-services/speech-service/quickstarts/voice-assistants) (with sendActivityAsync example)</a>
  *
  * @param activity the serialized payload of an activity to send.
  * @param interactionIdReceivedHandler a handler function called when the activity is sent to the service. This may occur

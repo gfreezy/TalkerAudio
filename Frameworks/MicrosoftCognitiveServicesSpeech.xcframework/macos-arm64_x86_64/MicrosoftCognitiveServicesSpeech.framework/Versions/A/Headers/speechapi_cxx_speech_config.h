@@ -22,7 +22,7 @@ class EmbeddedSpeechConfig;
 class HybridSpeechConfig;
 
 /// <summary>
-/// Class that defines configurations for speech / intent recognition, or speech synthesis.
+/// Class that defines configurations for speech recognition or speech synthesis.
 /// </summary>
 class SpeechConfig
 {
@@ -98,8 +98,10 @@ public:
     /// Creates an instance of SpeechConfig with specified endpoint.
     /// This method is intended only for users who use a non-standard service endpoint.
     /// Note: The query parameters specified in the endpoint URI are not changed, even if they are set by any other APIs.
+    /// Whether a specific query parameter is supported or not, depends on the endpoint and scenario.
     /// For example, if the recognition language is defined in URI as query parameter "language=de-DE", and also set by SetSpeechRecognitionLanguage("en-US"),
     /// the language setting in URI takes precedence, and the effective language is "de-DE".
+    /// The example only applies when the endpoint and scenario combination supports language as a query parameter.
     /// Only the parameters that are not specified in the endpoint URI can be set by other APIs.
     /// Note: If the endpoint requires a subscription key for authentication, use FromEndpoint(const SPXSTRING&, const SPXSTRING&) to pass
     /// the subscription key as parameter.
@@ -282,7 +284,7 @@ public:
     }
 
     /// <summary>
-    /// Gets the subscription key that is used to create Speech Recognizer or Intent Recognizer or Translation Recognizer or Speech Synthesizer.
+    /// Gets the subscription key that is used to create Speech Recognizer or Translation Recognizer or Speech Synthesizer.
     /// </summary>
     /// <returns>The subscription key.</returns>
     SPXSTRING GetSubscriptionKey() const
@@ -291,7 +293,7 @@ public:
     }
 
     /// <summary>
-    /// Gets the region key that used to create Speech Recognizer or Intent Recognizer or Translation Recognizer or speech Synthesizer.
+    /// Gets the region key that used to create Speech Recognizer or Translation Recognizer or speech Synthesizer.
     /// </summary>
     /// <returns>Region.</returns>
     SPXSTRING GetRegion() const
@@ -335,6 +337,10 @@ public:
     /// Enables audio logging in service.
     /// Added in version 1.5.0.
     /// </summary>
+    /// <remarks>
+    /// Audio and content logs are stored either in Microsoft-owned storage, or in your own storage account linked
+    /// to your Cognitive Services subscription (Bring Your Own Storage (BYOS) enabled Speech resource).
+    /// </remarks>
     void EnableAudioLogging()
     {
         property_bag_set_string(m_propertybag, static_cast<int>(PropertyId::SpeechServiceConnection_EnableAudioLogging), nullptr, TrueString);
@@ -364,7 +370,7 @@ public:
     ///
     /// Note: Proxy functionality is not available on macOS. This function will have no effect on this platform.
     /// </summary>
-    /// <param name="proxyHostName">The host name of the proxy server, without the protocol scheme (http://)</param>
+    /// <param name="proxyHostName">The host name of the proxy server, without the protocol scheme (`http://`)</param>
     /// <param name="proxyPort">The port number of the proxy server</param>
     /// <param name="proxyUserName">The user name of the proxy server</param>
     /// <param name="proxyPassword">The password of the proxy server</param>

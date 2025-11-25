@@ -16,7 +16,6 @@ namespace Microsoft {
 namespace CognitiveServices {
 namespace Speech {
 
-
 /// <summary>
 /// Class for pronunciation assessment results.
 /// </summary>
@@ -67,6 +66,13 @@ public:
     /// </summary>
     const double FluencyScore;
 
+    /// <summary>
+    /// The score indicating the prosody of the given speech.
+    /// If this is less 0, it means the prosody assessment is not enabled.
+    /// </summary>
+    const double ProsodyScore;
+
+
 protected:
 
     /*! \cond PROTECTED */
@@ -76,7 +82,8 @@ protected:
         AccuracyScore(std::stod(properties.GetProperty("AccuracyScore", "-1"))),
         PronunciationScore(std::stod(properties.GetProperty("PronScore", "-1"))),
         CompletenessScore(std::stod(properties.GetProperty("CompletenessScore", "-1"))),
-        FluencyScore(std::stod(properties.GetProperty("FluencyScore", "-1")))
+        FluencyScore(std::stod(properties.GetProperty("FluencyScore", "-1"))),
+        ProsodyScore(std::stod(properties.GetProperty("ProsodyScore", "-1")))
     {
     }
 
