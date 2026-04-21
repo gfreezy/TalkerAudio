@@ -87,9 +87,9 @@ public class StreamSynthesizerPlayer {
                         infoLog("load for: \(text)")
                         let player = self.newPlayerFunc(text, voiceId, style, role)
                         try player.load()
+                        await channel.send((text, player))
                         try await player.waitForLoadFinished()
                         infoLog("load finished for: \(text)")
-                        await channel.send((text, player))
                     }
                 }
 
