@@ -53,11 +53,6 @@ public class AzureStreamSynthesizer: StreamSynthesizerProtocol {
         infoLog("[prewarm] AzureStreamSynthesizer init total: \(elapsed)ms voice=\(voiceId)")
     }
 
-    public func setText(_ text: String) {
-        self.text = text.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(
-            in: .punctuationCharacters)
-    }
-
     private func setup() {
         do {
             let speechConfig = try SPXSpeechConfiguration(subscription: sub, region: region)
@@ -136,7 +131,6 @@ public class AzureStreamSynthesizer: StreamSynthesizerProtocol {
     }
 
     public func play() async throws {
-        try load()
         try await waitForLoadFinished()
         infoLog("finish load:", text)
         try await player.play()
@@ -157,11 +151,13 @@ public class AzureStreamSynthesizer: StreamSynthesizerProtocol {
         try await sentenceFinishSignal.wait()
     }
 
-    public func load() throws {
+    public func load(text: String) throws {
         guard !isLoaded else {
             return
         }
         isLoaded = true
+        self.text = text.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(
+            in: .punctuationCharacters)
         let loadStart = Date()
         loadStartedAt = loadStart
         let sinceCreate = Int(loadStart.timeIntervalSince(createdAt) * 1000)

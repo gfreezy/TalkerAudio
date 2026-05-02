@@ -35,10 +35,6 @@ public final class AliyunStreamSynthesizer: StreamSynthesizerProtocol, @unchecke
         self.getTokenFunc = getToken
     }
 
-    public func setText(_ text: String) {
-        self.text = text
-    }
-
     private func buildAudioUrl() async throws -> URL {
         guard let encodedText = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
         else {
@@ -56,10 +52,11 @@ public final class AliyunStreamSynthesizer: StreamSynthesizerProtocol, @unchecke
         return url
     }
 
-    public func load() throws {
+    public func load(text: String) throws {
         guard task == nil else {
             return
         }
+        self.text = text
         task = Task { @Sendable [self] in
             let url = try await self.buildAudioUrl()
             player.load(url)
@@ -79,7 +76,6 @@ public final class AliyunStreamSynthesizer: StreamSynthesizerProtocol, @unchecke
     }
 
     public func play() async throws {
-        try load()
         try await waitForLoadFinished()
         try await player.play()
     }

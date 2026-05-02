@@ -103,7 +103,7 @@ public class OpusOggEncoder: AudioEncoderProtocol {
     ) throws {
         // avoid resampling
         guard pcmRate == opusRate else {
-            print(
+            errorLog(
                 "Resampling is not supported. Please ensure that the PCM and Opus sample rates match."
             )
             throw OggError.internalError

@@ -174,7 +174,7 @@ public final class StreamAudioRecorder: Sendable {
         guard
             let pcmBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: inNumPackets)
         else {
-            print("Failed to create PCM buffer")
+            errorLog("Failed to create PCM buffer")
             return nil
         }
 

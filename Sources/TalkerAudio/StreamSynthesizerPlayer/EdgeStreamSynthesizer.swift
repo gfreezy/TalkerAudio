@@ -135,17 +135,11 @@ public final class EdgeStreamSynthesizer: NSObject, URLSessionWebSocketDelegate,
         self.player = StreamAudio.StreamAudioPlayer(cachePath: cachePath, fileType: kAudioFileMP3Type)
     }
 
-    public func setText(_ text: String) {
-        self.text = text
-    }
-
     public var isPlaying: Bool {
         return player.runningState == .playing
     }
 
     public func play() async throws {
-        debugLog("start load: \(self.text)")
-        try load()
         debugLog("wait for load to finish: \(self.text)")
         do {
             try await waitForLoadFinished()
@@ -167,10 +161,11 @@ public final class EdgeStreamSynthesizer: NSObject, URLSessionWebSocketDelegate,
         try await player.waitForStop()
     }
 
-    public func load() throws {
+    public func load(text: String) throws {
         guard webSocketTask == nil else {
             return
         }
+        self.text = text
 
         var request = URLRequest(url: URL(string: synthUrl)!)
         request.allHTTPHeaderFields = EdgeConstants.WSS_HEADERS

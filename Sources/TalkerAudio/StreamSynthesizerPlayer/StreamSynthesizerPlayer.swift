@@ -172,10 +172,9 @@ public class StreamSynthesizerPlayer {
                         let usedPrepared = resolved.1
                         infoLog("[prewarm] text chunk using \(usedPrepared ? "PREPARED" : "fresh") inner for: \(text.prefix(30))")
                         let loadStart = Date()
-                        player.setText(text)
-                        try player.load()
+                        try player.load(text: text)
                         let loadElapsed = Int(Date().timeIntervalSince(loadStart) * 1000)
-                        infoLog("[prewarm] setText+load(\(usedPrepared ? "PREPARED" : "fresh")): \(loadElapsed)ms")
+                        infoLog("[prewarm] load(\(usedPrepared ? "PREPARED" : "fresh")): \(loadElapsed)ms")
                         await channel.send((text, player))
                         let waitStart = Date()
                         try await player.waitForLoadFinished()
