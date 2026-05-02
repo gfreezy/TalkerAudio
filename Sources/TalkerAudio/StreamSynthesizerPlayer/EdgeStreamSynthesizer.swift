@@ -119,21 +119,24 @@ public final class EdgeStreamSynthesizer: NSObject, URLSessionWebSocketDelegate,
     private nonisolated(unsafe) var webSocketTask: URLSessionWebSocketTask?
     private let outputFormat = "audio-24khz-48kbitrate-mono-mp3"
     private let synthUrl: String
-    private let text: String
+    private nonisolated(unsafe) var text: String = ""
     private let voice: String
     private let voiceLocale: String
     private let websocketConnected = OneShotChannel()
     private nonisolated(unsafe) var isDataLoaded = false
     private nonisolated(unsafe) let player: StreamAudio.StreamAudioPlayer
 
-    public init(text: String, voice: String) {
-        self.text = text
+    public init(voice: String) {
         self.voice = voice
         self.synthUrl = EdgeConstants.wssUrl()
         self.voiceLocale = getLangFromVoiceId(voice) ?? "en-US"
         var cachePath = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         cachePath.appendPathExtension("mp3")
         self.player = StreamAudio.StreamAudioPlayer(cachePath: cachePath, fileType: kAudioFileMP3Type)
+    }
+
+    public func setText(_ text: String) {
+        self.text = text
     }
 
     public var isPlaying: Bool {

@@ -29,15 +29,17 @@ public class AzureStreamSynthesizer: StreamSynthesizerProtocol {
     private var synthesizerConnection: SPXConnection? = nil
     private var sentenceFinishSignal = OneShotChannel()
     private let player: StreamAudio.StreamAudioPlayer
-    private let text: String
+    private var text: String = ""
     private let voiceId: String
     private let style: String
     private let role: String
     private var isLoaded = false
+    private let createdAt: Date = Date()
+    private var loadStartedAt: Date?
+    private var firstByteLogged = false
 
-    public init(text: String, voiceId: String, style: String, role: String, sub: String, region: String) {
-        self.text = text.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(
-            in: .punctuationCharacters)
+    public init(voiceId: String, style: String, role: String, sub: String, region: String) {
+        let initStart = Date()
         self.sub = sub
         self.region = region
         self.voiceId = voiceId
@@ -47,6 +49,13 @@ public class AzureStreamSynthesizer: StreamSynthesizerProtocol {
         cachePath.appendPathExtension("mp3")
         self.player = StreamAudio.StreamAudioPlayer(cachePath: cachePath, fileType: kAudioFileMP3Type)
         self.setup()
+        let elapsed = Int(Date().timeIntervalSince(initStart) * 1000)
+        infoLog("[prewarm] AzureStreamSynthesizer init total: \(elapsed)ms voice=\(voiceId)")
+    }
+
+    public func setText(_ text: String) {
+        self.text = text.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(
+            in: .punctuationCharacters)
     }
 
     private func setup() {
@@ -77,8 +86,11 @@ public class AzureStreamSynthesizer: StreamSynthesizerProtocol {
                 infoLog("cancel speaking for result: \(arg.result.resultId)")
                 sentenceFinishSignal.finish(throwing: StreamSynthesizerError.synthesizeCancelled)
             })
+            let openCallStart = Date()
             let connection = try SPXConnection(from: speechSynthesizer)
             connection.open(true)
+            let openCallElapsed = Int(Date().timeIntervalSince(openCallStart) * 1000)
+            infoLog("[prewarm] Azure setup: connection.open(true) call returned in \(openCallElapsed)ms (handshake continues async)")
             self.synthesizerConnection = connection
             self.speechSynthesizer = speechSynthesizer
         } catch {
@@ -87,6 +99,12 @@ public class AzureStreamSynthesizer: StreamSynthesizerProtocol {
     }
 
     private func writeHandler(_ data: Data) -> UInt {
+        if !firstByteLogged {
+            firstByteLogged = true
+            let sinceCreate = Int(Date().timeIntervalSince(createdAt) * 1000)
+            let sinceLoad = loadStartedAt.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1
+            infoLog("[prewarm] Azure first audio byte: \(data.count) bytes, sinceInit=\(sinceCreate)ms sinceLoad=\(sinceLoad)ms voice=\(voiceId)")
+        }
         do {
             try player.writeData(data)
         } catch {
@@ -144,12 +162,18 @@ public class AzureStreamSynthesizer: StreamSynthesizerProtocol {
             return
         }
         isLoaded = true
+        let loadStart = Date()
+        loadStartedAt = loadStart
+        let sinceCreate = Int(loadStart.timeIntervalSince(createdAt) * 1000)
+        infoLog("[prewarm] Azure load enter: sinceInit=\(sinceCreate)ms voice=\(voiceId)")
         let ssml = buildSsmlText()
         guard let speechSynthesizer = speechSynthesizer else {
             throw StreamSynthesizerError.speechSynthesizerNotExist
         }
 
         let result = try speechSynthesizer.startSpeakingSsml(ssml)
+        let elapsed = Int(Date().timeIntervalSince(loadStart) * 1000)
+        infoLog("[prewarm] Azure load: startSpeakingSsml returned in \(elapsed)ms")
         if result.reason == SPXResultReason.canceled {
             let cancellationDetails = try SPXSpeechSynthesisCancellationDetails(
                 fromCanceledSynthesisResult: result)

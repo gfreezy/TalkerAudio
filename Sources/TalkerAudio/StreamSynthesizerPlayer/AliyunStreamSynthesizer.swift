@@ -12,10 +12,10 @@ import OSLog
 import StreamAudio
 import TalkerCommon
 
-public final class AliyunStreamSynthesizer: StreamSynthesizerProtocol, Sendable {
+public final class AliyunStreamSynthesizer: StreamSynthesizerProtocol, @unchecked Sendable {
 
     private let format: String
-    private let text: String
+    private nonisolated(unsafe) var text: String = ""
     private let sampleRate: Int
     private let appKey: String
     private let host = "nls-gateway-cn-shanghai.aliyuncs.com"
@@ -28,12 +28,15 @@ public final class AliyunStreamSynthesizer: StreamSynthesizerProtocol, Sendable 
     private nonisolated(unsafe) var task: Task<(), Error>? = nil
     private let getTokenFunc: @Sendable () async throws -> String
 
-    public init(text: String, appKey: String, getToken: @Sendable @escaping () async throws -> String, format: String = "mp3", sampleRate: Int = 16000) {
-        self.text = text
+    public init(appKey: String, getToken: @Sendable @escaping () async throws -> String, format: String = "mp3", sampleRate: Int = 16000) {
         self.appKey = appKey
         self.format = format
         self.sampleRate = sampleRate
         self.getTokenFunc = getToken
+    }
+
+    public func setText(_ text: String) {
+        self.text = text
     }
 
     private func buildAudioUrl() async throws -> URL {
