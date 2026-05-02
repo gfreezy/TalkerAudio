@@ -33,11 +33,10 @@ public final class OneShotChannel<T>: @unchecked Sendable {
     /// The semaphore value.
     private var value: Value
 
-    /// As many elements as there are suspended tasks waiting for a signal.
-    /// We store `Suspension` instances instead of `UnsafeContinuation`, because
-    /// we support cancellation by removing `Suspension` instances from
-    /// this array.
-    private var continuation: CheckedContinuation<Void, Never>? = nil
+    /// All suspended tasks waiting for a signal. Multiple concurrent waiters
+    /// are supported: every waiter is appended here and all of them are
+    /// resumed when `finish` is called.
+    private var continuations: [CheckedContinuation<Void, Never>] = []
 
     /// The lock that protects `value` and `continuation`.
     private let _lock = NSRecursiveLock()
@@ -54,7 +53,7 @@ public final class OneShotChannel<T>: @unchecked Sendable {
 
     deinit {
         precondition(
-            continuation == nil,
+            continuations.isEmpty,
             "OneShotChannel is deallocated while task is suspended waiting for a signal.")
     }
 
@@ -112,12 +111,10 @@ public final class OneShotChannel<T>: @unchecked Sendable {
         }
 
         await withCheckedContinuation { continuation in
-            // Register the continuation that `signal` will resume.
-            //
-            // The first suspended task will be the first task resumed by `signal`.
-            // This is not intended to be a strong fifo guarantee, but just
-            // an attempt at some fairness.
-            self.continuation = continuation
+            // Register the continuation that `finish` will resume.
+            // All concurrent waiters are appended; `finish` resumes every one
+            // of them in FIFO order.
+            self.continuations.append(continuation)
             unlock()
         }
         lock()
@@ -145,13 +142,7 @@ public final class OneShotChannel<T>: @unchecked Sendable {
         defer { unlock() }
 
         self.value = .success(value)
-
-        guard let continuation else {
-            // finished before waitting
-            return
-        }
-        continuation.resume()
-        self.continuation = nil
+        resumeAllWaitersLocked()
     }
 
     public func finish(throwing: Error) {
@@ -159,13 +150,16 @@ public final class OneShotChannel<T>: @unchecked Sendable {
         defer { unlock() }
 
         self.value = .error(throwing)
+        resumeAllWaitersLocked()
+    }
 
-        guard let continuation else {
-            // finished before waitting
-            return
+    /// Must be called while holding the lock.
+    private func resumeAllWaitersLocked() {
+        let pending = continuations
+        continuations.removeAll()
+        for continuation in pending {
+            continuation.resume()
         }
-        continuation.resume()
-        self.continuation = nil
     }
 }
 
