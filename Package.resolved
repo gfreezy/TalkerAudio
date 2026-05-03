@@ -1,15 +1,6 @@
 {
-  "originHash" : "1bfe633593d048bd7788ef0ef701e88c7d22ffaee8e7dcf48fcc2048e22f2e05",
+  "originHash" : "8d83afed9d503a424580f7eab3314c4b79515648773946d1e16195789c232bd2",
   "pins" : [
-    {
-      "identity" : "asyncobjects",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/gfreezy/AsyncObjects",
-      "state" : {
-        "revision" : "10c9d752a000da218bb78bd5634cccf0a3c8b3f0",
-        "version" : "2.1.1"
-      }
-    },
     {
       "identity" : "ogg-swift",
       "kind" : "remoteSourceControl",
