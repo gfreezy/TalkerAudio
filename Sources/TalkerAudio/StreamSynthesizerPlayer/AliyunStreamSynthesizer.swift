@@ -5,6 +5,7 @@
 //  Created by feichao on 2023/4/27.
 //
 
+import AsyncObjects
 import AVFoundation
 import AsyncAlgorithms
 import Foundation
@@ -12,30 +13,37 @@ import OSLog
 import StreamAudio
 import TalkerCommon
 
-public final class AliyunStreamSynthesizer: StreamSynthesizerProtocol, @unchecked Sendable {
+public final class AliyunStreamSynthesizerEngine: StreamSynthesizerEngine {
+    // All stored properties are `let` + Sendable, so the compiler synthesizes
+    // Sendable for us — no `@unchecked` needed.
 
     private let format: String
-    private nonisolated(unsafe) var text: String = ""
     private let sampleRate: Int
     private let appKey: String
     private let host = "nls-gateway-cn-shanghai.aliyuncs.com"
-    private let tokenizer = Tokenizor()
-    private let player: URLAudioPlayer = {
-        var cachePath = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-        cachePath.appendPathExtension("mp3")
-        return URLAudioPlayer(cachePath: cachePath)
-    }()
-    private nonisolated(unsafe) var task: Task<(), Error>? = nil
     private let getTokenFunc: @Sendable () async throws -> String
+    private let borrowSemaphore = AsyncSemaphore(value: 1)
 
-    public init(appKey: String, getToken: @Sendable @escaping () async throws -> String, format: String = "mp3", sampleRate: Int = 16000) {
+    public init(
+        appKey: String,
+        getToken: @Sendable @escaping () async throws -> String,
+        format: String = "mp3",
+        sampleRate: Int = 16000
+    ) {
         self.appKey = appKey
         self.format = format
         self.sampleRate = sampleRate
         self.getTokenFunc = getToken
     }
 
-    private func buildAudioUrl() async throws -> URL {
+    public func makeSession(text: String) async throws -> any StreamSynthesizerSession & Sendable {
+        try await borrowSemaphore.wait()
+        return AliyunStreamSynthesizerSession(text: text, engine: self)
+    }
+
+    public func shutdown() {}
+
+    fileprivate func buildAudioUrl(text: String) async throws -> URL {
         guard let encodedText = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
         else {
             throw MessageError("Unable to encode text")
@@ -52,27 +60,37 @@ public final class AliyunStreamSynthesizer: StreamSynthesizerProtocol, @unchecke
         return url
     }
 
-    public func load(text: String) throws {
-        guard task == nil else {
-            return
+    fileprivate func releaseBorrow() {
+        borrowSemaphore.signal()
+    }
+}
+
+public final class AliyunStreamSynthesizerSession: StreamSynthesizerSession, Sendable {
+    // All-let Sendable storage — synthesized Sendable, no escape hatch needed.
+
+    private let player: URLAudioPlayer
+    private let loadTask: Task<Void, Error>
+
+    init(text: String, engine: AliyunStreamSynthesizerEngine) {
+        let player = URLAudioPlayer(cachePath: tempAudioCachePath(extension: "mp3"))
+        self.player = player
+
+        let released = Lock(false)
+        let releaseOnce: @Sendable () -> Void = {
+            let shouldRelease = released.withLock { v -> Bool in
+                if v { return false }
+                v = true
+                return true
+            }
+            if shouldRelease { engine.releaseBorrow() }
         }
-        self.text = text
-        task = Task { @Sendable [self] in
-            let url = try await self.buildAudioUrl()
+
+        self.loadTask = Task { @Sendable in
+            defer { releaseOnce() }
+            let url = try await engine.buildAudioUrl(text: text)
             player.load(url)
+            try await player.waitForLoadFinished()
         }
-    }
-
-    public func waitForLoadFinished() async throws {
-        try await player.waitForLoadFinished()
-    }
-
-    public func waitForPlayStopped() async throws {
-        try await player.waitForStop()
-    }
-
-    public var isPlaying: Bool {
-        return player.runningState == .playing
     }
 
     public func play() async throws {
@@ -82,11 +100,19 @@ public final class AliyunStreamSynthesizer: StreamSynthesizerProtocol, @unchecke
 
     public func stop() throws {
         try player.stop()
-        task?.cancel()
+        loadTask.cancel()
     }
 
-    func waitForStop() async throws {
+    public func waitForPlayStopped() async throws {
         try await player.waitForStop()
+    }
+
+    public func waitForLoadFinished() async throws {
+        try await loadTask.value
+    }
+
+    public var isPlaying: Bool {
+        return player.runningState == .playing
     }
 
     public func cachePath() -> URL {

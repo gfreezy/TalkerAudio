@@ -22,76 +22,20 @@ public enum StreamSynthesizerPlayerError: String, LocalizedError {
     }
 }
 
-@MainActor
-public class StreamSynthesizerPlayer {
-    //    private var synthesizerPlayers: [StreamSynthesizerProtocol] = []
+public final class StreamSynthesizerPlayer: Sendable {
+    private let engine: any StreamSynthesizerEngine & Sendable
     private let finished = OneShotChannel()
-    private let allPlayers: Lock<[any StreamSynthesizerProtocol & Sendable]> = Lock([])
-    private var task: Task<(), Error>? = nil
-    private let newPlayerFunc:
-        @Sendable (_ voiceId: String, _ style: String, _ role: String) ->
-            any StreamSynthesizerProtocol & Sendable
-    public private(set) var isPlaying: Bool = false
+    private let allSessions: Lock<[any StreamSynthesizerSession & Sendable]> = Lock([])
+    private let taskBox: Lock<Task<Void, Error>?> = Lock(nil)
+    private let isPlayingBox: Lock<Bool> = Lock(false)
 
-    private struct PreparedInner {
-        let player: any StreamSynthesizerProtocol & Sendable
-        let voiceId: String
-        let style: String
-        let role: String
-    }
-    private var prepared: PreparedInner?
+    public var isPlaying: Bool { isPlayingBox.withLock { $0 } }
 
-    public init(
-        newPlayer: @Sendable @escaping (
-            _ voiceId: String, _ style: String, _ role: String
-        ) -> StreamSynthesizerProtocol
-    ) {
-        self.newPlayerFunc = newPlayer
+    public init(engine: any StreamSynthesizerEngine & Sendable) {
+        self.engine = engine
     }
 
-    /// Pre-create an inner synthesizer for the given voice triple so its connection
-    /// is opened ahead of time. The first text chunk in `streamSynthesize` consumes
-    /// it; if the voice triple doesn't match at that point, the prepared instance is
-    /// discarded.
-    /// Idempotent for the same triple; calling with a different triple discards the
-    /// previous prepared instance.
-    public func prepare(voiceId: String, style: String, role: String) {
-        if let prepared,
-           prepared.voiceId == voiceId,
-           prepared.style == style,
-           prepared.role == role
-        {
-            infoLog("[prewarm] StreamSynthesizerPlayer.prepare: same triple, no-op (\(voiceId)/\(style)/\(role))")
-            return
-        }
-        if let prepared {
-            infoLog("[prewarm] StreamSynthesizerPlayer.prepare: discard previous (\(prepared.voiceId)/\(prepared.style)/\(prepared.role)) -> (\(voiceId)/\(style)/\(role))")
-            try? prepared.player.stop()
-        }
-        let createStart = Date()
-        infoLog("[prewarm] StreamSynthesizerPlayer.prepare: creating inner for \(voiceId)/\(style)/\(role)")
-        let inner = newPlayerFunc(voiceId, style, role)
-        let elapsedMs = Int(Date().timeIntervalSince(createStart) * 1000)
-        infoLog("[prewarm] StreamSynthesizerPlayer.prepare: inner created in \(elapsedMs)ms")
-        prepared = PreparedInner(player: inner, voiceId: voiceId, style: style, role: role)
-    }
-
-    /// Drop any prepared inner synthesizer without using it. Call when you no longer
-    /// expect to speak (e.g. session teardown) so the open connection is released.
-    public func discardPrepared() {
-        guard let prepared else {
-            infoLog("[prewarm] StreamSynthesizerPlayer.discardPrepared: nothing to discard")
-            return
-        }
-        infoLog("[prewarm] StreamSynthesizerPlayer.discardPrepared: dropping (\(prepared.voiceId)/\(prepared.style)/\(prepared.role))")
-        try? prepared.player.stop()
-        self.prepared = nil
-    }
-
-    @MainActor
-    public func synthesize(
-        text: String, saveTo: String?, voiceId: String, style: String, role: String
-    ) async throws {
+    public func synthesize(text: String, saveTo: String?) async throws {
         let tokenizor = Tokenizor()
         let sentences = tokenizor.splitToSentences(text, maxChars: 200)
         let stream = AsyncThrowingStream { cont in
@@ -100,98 +44,50 @@ public class StreamSynthesizerPlayer {
             }
             cont.finish()
         }
-        try await streamSynthesize(
-            textStream: stream, saveTo: saveTo, voiceId: voiceId, style: style, role: role)
+        try await streamSynthesize(textStream: stream, saveTo: saveTo)
     }
 
-    @MainActor
     public func streamSynthesize(
         textStream: AsyncThrowingStream<String, Error>,
-        saveTo: String?,
-        voiceId: String,
-        style: String,
-        role: String
+        saveTo: String?
     ) async throws {
         let finished = finished
-        isPlaying = true
+        allSessions.withLock { $0.removeAll() }
+        isPlayingBox.withLock { $0 = true }
 
-        let preparedSlot: Lock<(any StreamSynthesizerProtocol & Sendable)?>
-        if let prepared,
-           prepared.voiceId == voiceId,
-           prepared.style == style,
-           prepared.role == role
-        {
-            infoLog("[prewarm] streamSynthesize: matched prepared inner for \(voiceId)/\(style)/\(role)")
-            preparedSlot = Lock(prepared.player)
-            self.prepared = nil
-        } else {
-            if let stale = prepared {
-                infoLog("[prewarm] streamSynthesize: voice mismatch, discard prepared (\(stale.voiceId)/\(stale.style)/\(stale.role)) requested (\(voiceId)/\(style)/\(role))")
-                try? stale.player.stop()
-                self.prepared = nil
-            } else {
-                infoLog("[prewarm] streamSynthesize: no prepared inner, will create fresh per text chunk")
-            }
-            preparedSlot = Lock(nil)
-        }
-
-        task = Task { [unowned self] in
+        let task: Task<Void, Error> = Task { [unowned self] in
             defer {
                 infoLog("finished.")
                 finished.finish(())
-                isPlaying = false
-                // Release any unconsumed prepared inner so its connection can drop.
-                preparedSlot.withLock { slot in
-                    if let leftover = slot {
-                        try? leftover.stop()
-                        slot = nil
-                    }
-                }
+                isPlayingBox.withLock { $0 = false }
             }
 
-            let channel = AsyncChannel<(String, any StreamSynthesizerProtocol & Sendable)>()
+            let channel = AsyncChannel<(String, any StreamSynthesizerSession & Sendable)>()
             try await withThrowingTaskGroup(of: Void.self) { group in
                 group.addTask { @Sendable in
                     defer {
-                        infoLog("all player finished load.")
+                        infoLog("all sessions finished load.")
                         channel.finish()
                     }
 
                     for try await text in textStream {
                         try Task.checkCancellation()
-                        let chunkStart = Date()
                         infoLog("load for: \(text)")
-                        let resolved: (any StreamSynthesizerProtocol & Sendable, Bool) = preparedSlot.withLock { slot in
-                            if let prepared = slot {
-                                slot = nil
-                                return (prepared, true)
-                            }
-                            return (self.newPlayerFunc(voiceId, style, role), false)
-                        }
-                        let player = resolved.0
-                        let usedPrepared = resolved.1
-                        infoLog("[prewarm] text chunk using \(usedPrepared ? "PREPARED" : "fresh") inner for: \(text.prefix(30))")
-                        let loadStart = Date()
-                        try player.load(text: text)
-                        let loadElapsed = Int(Date().timeIntervalSince(loadStart) * 1000)
-                        infoLog("[prewarm] load(\(usedPrepared ? "PREPARED" : "fresh")): \(loadElapsed)ms")
-                        await channel.send((text, player))
-                        let waitStart = Date()
-                        try await player.waitForLoadFinished()
-                        let waitElapsed = Int(Date().timeIntervalSince(waitStart) * 1000)
-                        let totalElapsed = Int(Date().timeIntervalSince(chunkStart) * 1000)
-                        infoLog("[prewarm] load finished for: \(text), waitForLoadFinished=\(waitElapsed)ms total=\(totalElapsed)ms")
+                        let session = try await self.engine.makeSession(text: text)
+                        await channel.send((text, session))
+                        try await session.waitForLoadFinished()
+                        infoLog("load finished for: \(text)")
                     }
                 }
 
                 group.addTask { @Sendable in
-                    for await (text, player) in channel.buffer(policy: .bounded(5)) {
+                    for await (text, session) in channel.buffer(policy: .bounded(5)) {
                         try Task.checkCancellation()
-                        self.allPlayers.withLock { $0.append(player) }
+                        self.allSessions.withLock { $0.append(session) }
                         infoLog("start play for: \(text)")
-                        try await player.play()
+                        try await session.play()
                         infoLog("wait for player to stop")
-                        try await player.waitForPlayStopped()
+                        try await session.waitForPlayStopped()
                         infoLog("play stopped for: \(text)")
                     }
                 }
@@ -202,14 +98,14 @@ public class StreamSynthesizerPlayer {
 
             try Task.checkCancellation()
 
-            infoLog("players count: \(self.allPlayers.withLock { $0.count })")
-            guard let saveTo, !allPlayers.withLock({ $0.isEmpty }) else {
+            infoLog("sessions count: \(self.allSessions.withLock { $0.count })")
+            guard let saveTo, !allSessions.withLock({ $0.isEmpty }) else {
                 return
             }
 
-            let mp3Files = allPlayers.withLock {
-                $0.map { player in
-                    player.cachePath()
+            let mp3Files = allSessions.withLock {
+                $0.map { session in
+                    session.cachePath()
                 }
             }
             let outputMp3File = buildURLForAudio(named: saveTo, format: .pcm)
@@ -230,30 +126,28 @@ public class StreamSynthesizerPlayer {
                 throw error
             }
         }
+        taskBox.withLock { $0 = task }
 
-        if let task {
-            try await task.value
-        }
+        try await task.value
     }
 
-    @MainActor
     public func waitForPlayerToStop() async throws {
         try await finished.wait()
     }
 
     public func stopPlaying() throws {
         infoLog("stop Playing")
-        guard let task else {
+        guard let task = taskBox.withLock({ $0 }) else {
             return
         }
         if !task.isCancelled {
             task.cancel()
         }
-        allPlayers.withLock { players in
-            for player in players {
-                infoLog("stop player inner")
-                if player.isPlaying {
-                    try? player.stop()
+        allSessions.withLock { sessions in
+            for session in sessions {
+                infoLog("stop session")
+                if session.isPlaying {
+                    try? session.stop()
                 }
             }
         }

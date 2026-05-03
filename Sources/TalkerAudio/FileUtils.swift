@@ -41,6 +41,15 @@ public func buildURLForAudio(named fileName: String, format: RecordFormat) -> UR
     buildURLForFile(named: fileName, inDirectory: "audio", format: format)
 }
 
+/// Build a fresh path under the system temp dir for a per-utterance audio
+/// cache file. The basename is a UUID; the caller passes the extension
+/// (without the dot).
+public func tempAudioCachePath(extension ext: String) -> URL {
+    var path = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    path.appendPathExtension(ext)
+    return path
+}
+
 enum SaveAudioError: String, LocalizedError {
     case convertToAudioPcmBuffer
 
