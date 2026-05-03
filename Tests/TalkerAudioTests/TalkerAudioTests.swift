@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import TalkerAudio
@@ -5831,8 +5832,6 @@ func testJson() throws {
 
     """
 
-  #expectNoThrow(
-    try JSONDecoder().decode(ResponseData.self, from: json.data(using: .utf8)!),
-    "parse json"
-  )
+  _ = try JSONDecoder().decode(ResponseData.self, from: json.data(using: .utf8)!)
 }
+
