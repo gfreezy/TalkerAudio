@@ -4,13 +4,14 @@
 //
 //  Created by feichao on 2023/3/16.
 //
-import AsyncObjects
 import AudioToolbox
 import OSLog
 import StreamAudio
 import SwiftUI
 import TalkerAudioObjC
 import TalkerCommon
+import AsyncAlgorithms
+import Semaphore
 
 enum StreamSynthesizerError: String, LocalizedError {
     case speechSynthesizerNotExist
@@ -128,7 +129,7 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
     }
 
     public func makeSession(text: String) async throws -> any StreamSynthesizerSession & Sendable {
-        try await borrowSemaphore.wait()
+        try await borrowSemaphore.waitUnlessCancelled()
         // Mark the borrow held so any release path (the catch below or the
         // SDK callback) is idempotent.
         borrowHeld.withLock { $0 = true }

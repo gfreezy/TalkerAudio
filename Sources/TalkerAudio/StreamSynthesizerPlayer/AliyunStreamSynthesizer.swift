@@ -5,13 +5,13 @@
 //  Created by feichao on 2023/4/27.
 //
 
-import AsyncObjects
 import AVFoundation
-import AsyncAlgorithms
 import Foundation
 import OSLog
 import StreamAudio
 import TalkerCommon
+import AsyncAlgorithms
+import Semaphore
 
 public final class AliyunStreamSynthesizerEngine: StreamSynthesizerEngine {
     // All stored properties are `let` + Sendable, so the compiler synthesizes
@@ -37,7 +37,7 @@ public final class AliyunStreamSynthesizerEngine: StreamSynthesizerEngine {
     }
 
     public func makeSession(text: String) async throws -> any StreamSynthesizerSession & Sendable {
-        try await borrowSemaphore.wait()
+        try await borrowSemaphore.waitUnlessCancelled()
         return AliyunStreamSynthesizerSession(text: text, engine: self)
     }
 

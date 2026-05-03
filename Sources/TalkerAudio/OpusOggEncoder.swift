@@ -19,6 +19,7 @@ import Foundation
 import YbridOgg
 import YbridOpus
 import AVFoundation
+import TalkerCommon
 
 // MARK: - OpusError
 internal enum OpusError: Error {

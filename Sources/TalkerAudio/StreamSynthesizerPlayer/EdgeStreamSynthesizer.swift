@@ -5,7 +5,6 @@
 //  Created by feichao on 2023/6/27.
 //
 
-import AsyncObjects
 import AVFoundation
 import Foundation
 import OSLog
@@ -13,6 +12,8 @@ import StreamAudio
 import SwiftUI
 import TalkerCommon
 import CryptoKit
+import AsyncAlgorithms
+import Semaphore
 
 
 fileprivate class EdgeConstants {
@@ -118,7 +119,7 @@ public final class EdgeStreamSynthesizerEngine: StreamSynthesizerEngine {
     }
 
     public func makeSession(text: String) async throws -> any StreamSynthesizerSession & Sendable {
-        try await borrowSemaphore.wait()
+        try await borrowSemaphore.waitUnlessCancelled()
         let sem = borrowSemaphore
         return EdgeStreamSynthesizerSession(
             text: text,
