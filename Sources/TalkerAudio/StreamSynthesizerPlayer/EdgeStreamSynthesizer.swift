@@ -11,6 +11,7 @@ import OSLog
 import StreamAudio
 import SwiftUI
 import TalkerCommonLogging
+import TalkerCommonSync
 import CryptoKit
 import AsyncAlgorithms
 import Semaphore
@@ -140,7 +141,7 @@ public final class EdgeStreamSynthesizerSession: NSObject, URLSessionWebSocketDe
     private let text: String
     private let voice: String
     private let voiceLocale: String
-    private let websocketConnected: OneShotChannel<Void>
+    private let websocketConnected: TalkerCommonSync.OneShotChannel<Void>
     private let player: StreamAudio.StreamAudioPlayer
     private let webSocketTask: URLSessionWebSocketTask
     private let loadTask: Task<Void, Error>
@@ -165,7 +166,7 @@ public final class EdgeStreamSynthesizerSession: NSObject, URLSessionWebSocketDe
         let webSocketTask = URLSession.shared.webSocketTask(with: request)
         self.webSocketTask = webSocketTask
 
-        let websocketConnected = OneShotChannel<Void>()
+        let websocketConnected = TalkerCommonSync.OneShotChannel<Void>()
         self.websocketConnected = websocketConnected
 
         let released = Lock(false)
@@ -234,7 +235,7 @@ public final class EdgeStreamSynthesizerSession: NSObject, URLSessionWebSocketDe
         synthUrl: String,
         voice: String,
         voiceLocale: String,
-        websocketConnected: OneShotChannel<Void>,
+        websocketConnected: TalkerCommonSync.OneShotChannel<Void>,
         webSocketTask: URLSessionWebSocketTask,
         player: StreamAudio.StreamAudioPlayer
     ) async throws {

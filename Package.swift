@@ -6,7 +6,8 @@ import PackageDescription
 let package = Package(
     name: "TalkerAudio",
     platforms: [
-        .iOS(.v16)
+        .iOS(.v16),
+        .macOS(.v14),
     ],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
@@ -15,8 +16,8 @@ let package = Package(
             targets: ["TalkerAudio"])
     ],
     dependencies: [
-        .package(url: "https://github.com/gfreezy/talkercommon", from: "20260505.0.1"),
-        .package(url: "https://github.com/gfreezy/StreamAudioPlayer", from: "20260503.0.2"),
+        .package(url: "https://github.com/gfreezy/talkercommon", from: "20260505.0.3"),
+        .package(url: "https://github.com/gfreezy/StreamAudioPlayer", from: "20260503.0.3"),
         .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
         .package(url: "https://github.com/groue/Semaphore", from: "0.1.0"),
         .package(url: "https://github.com/apple/swift-testing", from: "0.1.0"),
@@ -40,6 +41,7 @@ let package = Package(
                 "TalkerAudioObjC",
                 .product(name: "TalkerCommonLogging", package: "talkercommon"),
                 .product(name: "TalkerCommonError", package: "talkercommon"),
+                .product(name: "TalkerCommonSync", package: "talkercommon"),
                 .product(name: "StreamAudio", package: "StreamAudioPlayer"),
                 .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
                 .product(name: "Semaphore", package: "Semaphore"),

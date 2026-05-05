@@ -12,6 +12,7 @@ import OSLog
 import StreamAudio
 import SwiftUI
 import TalkerCommonLogging
+import TalkerCommonSync
 
 public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer,
     URLSessionWebSocketDelegate, @unchecked Sendable
@@ -27,8 +28,8 @@ public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer,
     }()
     private var webSocketTask: URLSessionWebSocketTask?
     private var sendAudioTask: Task<(), Error>? = nil
-    private let recognizedFinalText: OneShotChannel<String> = OneShotChannel(String.self)
-    private let websocketConnected = OneShotChannel()
+    private let recognizedFinalText: TalkerCommonSync.OneShotChannel<String> = TalkerCommonSync.OneShotChannel(String.self)
+    private let websocketConnected = TalkerCommonSync.OneShotChannel()
     private var websocketClosed = false
     private let appKey: String
     private let appSecret: String

@@ -12,6 +12,7 @@ import OSLog
 import StreamAudio
 import SwiftUI
 import TalkerCommonLogging
+import TalkerCommonSync
 
 // https://www.xfyun.cn/doc/asr/rtasr/API.html
 public final class XfStreamRecognizer: NSObject, StreamSpeechRecognizer,
@@ -28,8 +29,8 @@ public final class XfStreamRecognizer: NSObject, StreamSpeechRecognizer,
     }()
     private var webSocketTask: URLSessionWebSocketTask?
     private var sendAudioTask: Task<(), Error>? = nil
-    private let recognizedFinalText: OneShotChannel<String> = OneShotChannel(String.self)
-    private let websocketConnected = OneShotChannel()
+    private let recognizedFinalText: TalkerCommonSync.OneShotChannel<String> = TalkerCommonSync.OneShotChannel(String.self)
+    private let websocketConnected = TalkerCommonSync.OneShotChannel()
     private var websocketClosed = false
     private let appKey: String
     private let appSecret: String

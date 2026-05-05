@@ -9,6 +9,7 @@ import AVFoundation
 import Foundation
 import Speech
 import TalkerCommonLogging
+import TalkerCommonSync
 
 public class BaseSiriSpeechRecognizer: NSObject, SFSpeechRecognitionTaskDelegate,
     FileSpeechRecognizer, @unchecked Sendable

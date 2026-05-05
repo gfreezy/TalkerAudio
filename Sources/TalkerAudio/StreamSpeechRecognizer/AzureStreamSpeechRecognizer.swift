@@ -8,6 +8,7 @@
 import Foundation
 import TalkerAudioObjC
 import TalkerCommonLogging
+import TalkerCommonSync
 
 private class SimpleOperation: Operation, @unchecked Sendable {
     let callback: () -> Void

@@ -12,6 +12,7 @@ import TalkerAudioObjC
 import TalkerCommonLogging
 import AsyncAlgorithms
 import Semaphore
+import TalkerCommonSync
 
 enum StreamSynthesizerError: String, LocalizedError {
     case speechSynthesizerNotExist

@@ -1,5 +1,5 @@
 {
-  "originHash" : "8ec12ba4490051d5bd110c20ef0ac52d37f1538372ca0bd21909667533a999f1",
+  "originHash" : "159b65cbdaaeb2116fbf29398336c5bf8018584471bcc402b6892db9954b18de",
   "pins" : [
     {
       "identity" : "ogg-swift",
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/gfreezy/StreamAudioPlayer",
       "state" : {
-        "revision" : "2d1be792daa01e863d363d2d6fcc7176b7e951c8",
-        "version" : "20260503.0.2"
+        "revision" : "261019881daeffb8f56315d12eed6878ea8811f6",
+        "version" : "20260503.0.3"
       }
     },
     {
@@ -96,8 +96,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/gfreezy/talkercommon",
       "state" : {
-        "revision" : "03423276020559b5562e1a00d9baf40794f33cde",
-        "version" : "20260505.0.1"
+        "revision" : "acef9f0decc23d2cb321229e9d973333d9a3f1d4",
+        "version" : "20260505.0.3"
       }
     },
     {

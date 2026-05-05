@@ -12,6 +12,7 @@ import OSLog
 import StreamAudio
 import SwiftUI
 import TalkerCommonLogging
+import TalkerCommonSync
 
 public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDelegate, @unchecked
     Sendable
@@ -21,8 +22,8 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
     let pronounceInfoRequired: Lock<Bool> = Lock(false)
     nonisolated(unsafe) var webSocketTask: URLSessionWebSocketTask?
     nonisolated(unsafe) var sendAudioTask: Task<(), Error>?
-    let recognizedFinalResult: OneShotChannel<ResponseData> = OneShotChannel(ResponseData.self)
-    let websocketConnected = OneShotChannel()
+    let recognizedFinalResult: TalkerCommonSync.OneShotChannel<ResponseData> = TalkerCommonSync.OneShotChannel(ResponseData.self)
+    let websocketConnected = TalkerCommonSync.OneShotChannel()
     let websocketClosed = Lock(false)
     let url: String
     let extraHeaders: [String: String]

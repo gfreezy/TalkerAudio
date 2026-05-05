@@ -12,6 +12,7 @@ import StreamAudio
 import TalkerCommonLogging
 import AsyncAlgorithms
 import Semaphore
+import TalkerCommonSync
 
 public final class AliyunStreamSynthesizerEngine: StreamSynthesizerEngine {
     private let format: String
