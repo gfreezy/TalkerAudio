@@ -14,9 +14,6 @@ import AsyncAlgorithms
 import Semaphore
 
 public final class AliyunStreamSynthesizerEngine: StreamSynthesizerEngine {
-    // All stored properties are `let` + Sendable, so the compiler synthesizes
-    // Sendable for us — no `@unchecked` needed.
-
     private let format: String
     private let sampleRate: Int
     private let appKey: String

@@ -48,6 +48,7 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
     private let borrowHeld: Lock<Bool>
 
     public init(voiceId: String, style: String, role: String, sub: String, region: String) {
+        infoLog("[azure-engine-reuse] init voiceId=\(voiceId) style=\(style) role=\(role)")
         self.voiceId = voiceId
         self.style = style
         self.role = role
@@ -129,6 +130,7 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
     }
 
     public func makeSession(text: String) async throws -> any StreamSynthesizerSession & Sendable {
+        infoLog("[azure-engine-reuse] makeSession voiceId=\(voiceId) text.count=\(text.count)")
         try await borrowSemaphore.waitUnlessCancelled()
         // Mark the borrow held so any release path (the catch below or the
         // SDK callback) is idempotent.
@@ -202,6 +204,7 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
     }
 
     public func shutdown() {
+        infoLog("[azure-engine-reuse] shutdown voiceId=\(voiceId)")
         try? speechSynthesizer?.stopSpeaking()
         // SDK objects are `let`; they are released when this engine is deinit'd.
     }

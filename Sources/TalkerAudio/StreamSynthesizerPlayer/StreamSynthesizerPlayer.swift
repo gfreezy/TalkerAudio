@@ -128,7 +128,16 @@ public final class StreamSynthesizerPlayer: Sendable {
         }
         taskBox.withLock { $0 = task }
 
-        try await task.value
+        // Bridge parent-task cancellation to the unstructured `task`. Without
+        // this, `try await task.value` just blocks until `task` finishes on
+        // its own — the parent's cancel flag is set but never reaches the
+        // inner withThrowingTaskGroup, so the play task keeps `await`ing
+        // `session.waitForPlayStopped()` until the audio plays out naturally.
+        try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: {
+            task.cancel()
+        }
     }
 
     public func waitForPlayerToStop() async throws {

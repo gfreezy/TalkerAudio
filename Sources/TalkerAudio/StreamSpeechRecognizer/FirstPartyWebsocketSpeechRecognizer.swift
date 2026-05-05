@@ -52,8 +52,22 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
     }
 
     public func cancelRecoginition() throws {
-        sendAudioTask?.cancel()
-        webSocketTask?.cancel(with: .normalClosure, reason: nil)
+        infoLog(
+            "cancelRecoginition: called, sendAudioTask=\(sendAudioTask == nil ? "nil" : "set"), webSocketTask=\(webSocketTask == nil ? "nil" : "set"), webSocketTask.state=\(webSocketTask.map { String(describing: $0.state) } ?? "n/a"), webSocketTask.closeCode=\(webSocketTask.map { String(describing: $0.closeCode.rawValue) } ?? "n/a"), websocketConnected.isFinished=\(websocketConnected.isFinished), websocketClosed=\(websocketClosed.value), recognizedFinalResult.isFinished=\(recognizedFinalResult.isFinished), uniqueId: \(uniqueId)"
+        )
+        if let sendAudioTask {
+            infoLog("cancelRecoginition: cancelling sendAudioTask, uniqueId: \(uniqueId)")
+            sendAudioTask.cancel()
+        } else {
+            infoLog("cancelRecoginition: sendAudioTask is nil, skip cancel (likely still in websocketConnected.wait()), uniqueId: \(uniqueId)")
+        }
+        if let webSocketTask {
+            infoLog("cancelRecoginition: cancelling webSocketTask with .normalClosure, uniqueId: \(uniqueId)")
+            webSocketTask.cancel(with: .normalClosure, reason: nil)
+        } else {
+            infoLog("cancelRecoginition: webSocketTask is nil, skip cancel, uniqueId: \(uniqueId)")
+        }
+        infoLog("cancelRecoginition: returned, uniqueId: \(uniqueId)")
     }
 
     /// websocket reads data from this function, nil means no more data, empty data means sleep and retry.
@@ -62,8 +76,11 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
     }
 
     func startSendAudioTask() async throws {
+        infoLog("startSendAudioTask: begin, uniqueId: \(uniqueId)")
         connectWebsocket()
+        infoLog("startSendAudioTask: connectWebsocket returned, awaiting websocketConnected.wait(), uniqueId: \(uniqueId)")
         try await websocketConnected.wait()
+        infoLog("startSendAudioTask: websocketConnected.wait() returned, creating sendAudioTask, uniqueId: \(uniqueId)")
 
         sendAudioTask = Task {
             defer {
@@ -76,8 +93,9 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
 
             do {
                 try await withThrowingTaskGroup(of: Void.self) { group in
-                    infoLog("wait for started response, uniqueId: \(uniqueId)")
+                    infoLog("sendAudioTask: wait for started response, uniqueId: \(uniqueId)")
                     try await self.waitForStartedResponse()
+                    infoLog("sendAudioTask: started response received, spawning read/send subtasks, uniqueId: \(uniqueId)")
 
                     group.addTask {
                         try await self.readResultFromWebSocket()
@@ -119,6 +137,7 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
 
     func connectWebsocket() {
         guard webSocketTask == nil else {
+            infoLog("connectWebsocket: already has webSocketTask, skipping, uniqueId: \(uniqueId)")
             return
         }
         let url = buildUrl(
@@ -133,6 +152,7 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
         webSocketTask.delegate = self
         self.webSocketTask = webSocketTask
         webSocketTask.resume()
+        infoLog("connectWebsocket: webSocketTask.resume() called, uniqueId: \(uniqueId)")
     }
 
     func readResultFromWebSocket() async throws {
@@ -219,6 +239,7 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
         _ session: URLSession, webSocketTask: URLSessionWebSocketTask,
         didOpenWithProtocol protocol: String?
     ) {
+        infoLog("delegate didOpenWithProtocol fired, uniqueId: \(uniqueId)")
         websocketConnected.finish(())
         infoLog("websocket connected, uniqueId: \(uniqueId)")
     }
@@ -226,6 +247,7 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
     public func urlSession(
         _ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?
     ) {
+        infoLog("delegate didCompleteWithError fired, error: \(String(describing: error)), websocketConnected.isFinished=\(websocketConnected.isFinished), uniqueId: \(uniqueId)")
         if !websocketConnected.isFinished {
             websocketConnected.finish(
                 throwing: MessageError(
@@ -237,6 +259,7 @@ public class BaseFirstPartyWebsocketRecognizer: NSObject, URLSessionWebSocketDel
         _ session: URLSession, webSocketTask: URLSessionWebSocketTask,
         didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?
     ) {
+        infoLog("delegate didCloseWith fired, closeCode: \(closeCode.rawValue), websocketConnected.isFinished=\(websocketConnected.isFinished), uniqueId: \(uniqueId)")
         if !websocketConnected.isFinished {
             websocketConnected.finish(
                 throwing: MessageError("error connect, uniqueId: \(uniqueId)"))
@@ -337,21 +360,28 @@ public final class FirstPartyWebsocketStreamRecognizer: BaseFirstPartyWebsocketR
     public func startRecordingAndRecognition(
         language: String, reference: String?, pronounceInfoRequired: Bool, format: RecordFormat
     ) async throws {
+        infoLog("startRecordingAndRecognition: begin, uniqueId: \(uniqueId)")
         self.format = format
         try recorder.start(format: format)
+        infoLog("startRecordingAndRecognition: recorder.start returned, calling super.startRecognition, uniqueId: \(uniqueId)")
         try await super.startRecognition(
             language: language, reference: reference, pronounceInfoRequired: pronounceInfoRequired,
             format: format)
+        infoLog("startRecordingAndRecognition: super.startRecognition returned, uniqueId: \(uniqueId)")
         isRecordingStopped.value = false
     }
 
     public func stopRecordingAndCancelRecoginition() throws {
+        infoLog("stopRecordingAndCancelRecoginition: begin, uniqueId: \(uniqueId)")
         try stopRecording()
         try cancelRecoginition()
+        infoLog("stopRecordingAndCancelRecoginition: returned, uniqueId: \(uniqueId)")
     }
 
     public func stopRecording(force: Bool = false) throws {
+        infoLog("stopRecording: begin, force=\(force), isRecordingStopped=\(isRecordingStopped.value), uniqueId: \(uniqueId)")
         try recorder.stop()
+        infoLog("stopRecording: recorder.stop returned, uniqueId: \(uniqueId)")
         if !isRecordingStopped.value {
             infoLog(
                 "stop Recording, recorded bytes: \(streamAudioBuffer.totalBytes), uniqueId: \(uniqueId)"
@@ -360,6 +390,7 @@ public final class FirstPartyWebsocketStreamRecognizer: BaseFirstPartyWebsocketR
         isRecordingStopped.value = true
         queue.cancelAllOperations()
         streamAudioBuffer.finishStream()
+        infoLog("stopRecording: returned (queue cancelled, stream finished), uniqueId: \(uniqueId)")
     }
 
     public func saveAudioToFile(_ name: String?) throws -> String {

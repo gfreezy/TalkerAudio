@@ -16,7 +16,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/gfreezy/talkercommon", from: "20241210.1.8"),
-        .package(url: "https://github.com/gfreezy/StreamAudioPlayer", from: "20260503.0.1"),
+        .package(url: "https://github.com/gfreezy/StreamAudioPlayer", from: "20260503.0.2"),
         .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
         .package(url: "https://github.com/groue/Semaphore", from: "0.1.0"),
         .package(url: "https://github.com/apple/swift-testing", from: "0.1.0"),
