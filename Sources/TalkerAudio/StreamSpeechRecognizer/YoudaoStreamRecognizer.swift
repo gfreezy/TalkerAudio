@@ -11,7 +11,7 @@ import Foundation
 import OSLog
 import StreamAudio
 import SwiftUI
-import TalkerCommon
+import TalkerCommonLogging
 
 public final class YoudaoStreamRecognizer: NSObject, StreamSpeechRecognizer,
     URLSessionWebSocketDelegate, @unchecked Sendable

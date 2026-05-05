@@ -10,7 +10,7 @@ import Foundation
 import OSLog
 import StreamAudio
 import SwiftUI
-import TalkerCommon
+import TalkerCommonLogging
 import CryptoKit
 import AsyncAlgorithms
 import Semaphore

@@ -11,7 +11,7 @@ import Foundation
 import OSLog
 import StreamAudio
 import SwiftUI
-import TalkerCommon
+import TalkerCommonLogging
 
 // https://www.xfyun.cn/doc/asr/rtasr/API.html
 public final class XfStreamRecognizer: NSObject, StreamSpeechRecognizer,

@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
-import TalkerCommon
+import TalkerCommonLogging
+import TalkerCommonError
 
 public final class AacAdtsEncoder: AudioEncoderProtocol {
     private var converter: AVAudioConverter?

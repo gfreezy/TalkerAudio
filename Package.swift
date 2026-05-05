@@ -39,6 +39,7 @@ let package = Package(
             dependencies: [
                 "TalkerAudioObjC",
                 .product(name: "TalkerCommonLogging", package: "talkercommon"),
+                .product(name: "TalkerCommonError", package: "talkercommon"),
                 .product(name: "StreamAudio", package: "StreamAudioPlayer"),
                 .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
                 .product(name: "Semaphore", package: "Semaphore"),

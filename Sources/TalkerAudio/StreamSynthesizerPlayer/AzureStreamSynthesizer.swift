@@ -9,7 +9,7 @@ import OSLog
 import StreamAudio
 import SwiftUI
 import TalkerAudioObjC
-import TalkerCommon
+import TalkerCommonLogging
 import AsyncAlgorithms
 import Semaphore
 

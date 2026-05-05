@@ -7,7 +7,7 @@
 
 import AVFoundation
 import Foundation
-import TalkerCommon
+import TalkerCommonLogging
 
 public func pcmBytesToAVAudioPCMBuffer(pcmData: Data, sampleRate: Double, channels: UInt32 = 1)
     -> AVAudioPCMBuffer?

@@ -9,7 +9,7 @@ import AsyncAlgorithms
 import Foundation
 import OSLog
 import SwiftUI
-import TalkerCommon
+import TalkerCommonLogging
 
 public enum StreamSynthesizerPlayerError: String, LocalizedError {
     case notSetup

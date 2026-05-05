@@ -7,7 +7,7 @@
 
 import Foundation
 import TalkerAudioObjC
-import TalkerCommon
+import TalkerCommonLogging
 
 private class SimpleOperation: Operation, @unchecked Sendable {
     let callback: () -> Void

@@ -9,7 +9,7 @@ import AVFoundation
 import Foundation
 import OSLog
 import StreamAudio
-import TalkerCommon
+import TalkerCommonLogging
 import AsyncAlgorithms
 import Semaphore
 

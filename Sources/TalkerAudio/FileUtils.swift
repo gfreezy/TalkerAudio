@@ -1,6 +1,6 @@
 import AVFoundation
 import Foundation
-import TalkerCommon
+import TalkerCommonLogging
 
 public func saveData(_ data: Data, toFileNamed fileName: String, inDirectory directoryName: String)
     -> URL?

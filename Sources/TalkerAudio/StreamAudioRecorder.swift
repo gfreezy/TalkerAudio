@@ -6,7 +6,7 @@
 //
 
 import AVFoundation
-import TalkerCommon
+import TalkerCommonLogging
 
 public enum RecordFormat: Equatable, Sendable {
     case aac(bitRate: Int)

@@ -8,7 +8,7 @@
 import AVKit
 import Foundation
 import SwiftUI
-import TalkerCommon
+import TalkerCommonLogging
 
 import Foundation
 
