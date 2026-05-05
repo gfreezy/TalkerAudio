@@ -15,7 +15,7 @@ let package = Package(
             targets: ["TalkerAudio"])
     ],
     dependencies: [
-        .package(url: "https://github.com/gfreezy/talkercommon", from: "20241210.1.8"),
+        .package(url: "https://github.com/gfreezy/talkercommon", from: "20250505.0.1"),
         .package(url: "https://github.com/gfreezy/StreamAudioPlayer", from: "20260503.0.2"),
         .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
         .package(url: "https://github.com/groue/Semaphore", from: "0.1.0"),
@@ -38,7 +38,7 @@ let package = Package(
             name: "TalkerAudio",
             dependencies: [
                 "TalkerAudioObjC",
-                .product(name: "TalkerCommon", package: "talkercommon"),
+                .product(name: "TalkerCommonLogging", package: "talkercommon"),
                 .product(name: "StreamAudio", package: "StreamAudioPlayer"),
                 .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
                 .product(name: "Semaphore", package: "Semaphore"),

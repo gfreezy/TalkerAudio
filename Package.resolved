@@ -1,5 +1,5 @@
 {
-  "originHash" : "68e0a2cf257d94162518500ad545c753db99d180eb13a139a895dea1772ccd79",
+  "originHash" : "6682f7bc468268b74e5b1b26c5a54a090b48ba42a4a0fb05e4afd4f94ef73834",
   "pins" : [
     {
       "identity" : "ogg-swift",
@@ -17,15 +17,6 @@
       "state" : {
         "revision" : "11f1887767cbc87c4b64b789ee830b779cc744cb",
         "version" : "0.8.4"
-      }
-    },
-    {
-      "identity" : "processed",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SwiftedMind/Processed",
-      "state" : {
-        "revision" : "3eec30203744bce19f1d40af50a68d49e5de7c1b",
-        "version" : "2.2.0"
       }
     },
     {
@@ -105,8 +96,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/gfreezy/talkercommon",
       "state" : {
-        "revision" : "8a2fc4a7db702304b1343442a259e27b74fafabf",
-        "version" : "20241210.1.29"
+        "revision" : "03423276020559b5562e1a00d9baf40794f33cde",
+        "version" : "20250505.0.1"
       }
     },
     {
