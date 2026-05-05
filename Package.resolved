@@ -1,5 +1,5 @@
 {
-  "originHash" : "6682f7bc468268b74e5b1b26c5a54a090b48ba42a4a0fb05e4afd4f94ef73834",
+  "originHash" : "8ec12ba4490051d5bd110c20ef0ac52d37f1538372ca0bd21909667533a999f1",
   "pins" : [
     {
       "identity" : "ogg-swift",
@@ -97,7 +97,7 @@
       "location" : "https://github.com/gfreezy/talkercommon",
       "state" : {
         "revision" : "03423276020559b5562e1a00d9baf40794f33cde",
-        "version" : "20250505.0.1"
+        "version" : "20260505.0.1"
       }
     },
     {
