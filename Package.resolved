@@ -1,5 +1,5 @@
 {
-  "originHash" : "159b65cbdaaeb2116fbf29398336c5bf8018584471bcc402b6892db9954b18de",
+  "originHash" : "ab9af994533446c286dc10aad7aca8f0a5f92715c462e9ea3b1a5ecc96e802c7",
   "pins" : [
     {
       "identity" : "ogg-swift",
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/gfreezy/StreamAudioPlayer",
       "state" : {
-        "revision" : "261019881daeffb8f56315d12eed6878ea8811f6",
-        "version" : "20260503.0.3"
+        "revision" : "aba88ed37f56e6e713f73a09ab8ad6e9028a887f",
+        "version" : "20260505.0.1"
       }
     },
     {
