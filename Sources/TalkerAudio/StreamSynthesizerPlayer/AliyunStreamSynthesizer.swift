@@ -11,7 +11,6 @@ import OSLog
 import StreamAudio
 import TalkerCommonLogging
 import AsyncAlgorithms
-import Semaphore
 import TalkerCommonSync
 
 public final class AliyunStreamSynthesizerEngine: StreamSynthesizerEngine {
@@ -35,7 +34,7 @@ public final class AliyunStreamSynthesizerEngine: StreamSynthesizerEngine {
     }
 
     public func makeSession(text: String) async throws -> any StreamSynthesizerSession & Sendable {
-        try await borrowSemaphore.waitUnlessCancelled()
+        try await borrowSemaphore.wait()
         return AliyunStreamSynthesizerSession(text: text, engine: self)
     }
 

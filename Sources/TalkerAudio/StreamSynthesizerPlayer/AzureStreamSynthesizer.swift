@@ -11,7 +11,6 @@ import SwiftUI
 import TalkerAudioObjC
 import TalkerCommonLogging
 import AsyncAlgorithms
-import Semaphore
 import TalkerCommonSync
 
 enum StreamSynthesizerError: String, LocalizedError {
@@ -132,7 +131,7 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
 
     public func makeSession(text: String) async throws -> any StreamSynthesizerSession & Sendable {
         infoLog("[azure-engine-reuse] makeSession voiceId=\(voiceId) text.count=\(text.count)")
-        try await borrowSemaphore.waitUnlessCancelled()
+        try await borrowSemaphore.wait()
         // Mark the borrow held so any release path (the catch below or the
         // SDK callback) is idempotent.
         borrowHeld.withLock { $0 = true }

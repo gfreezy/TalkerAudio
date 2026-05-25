@@ -14,7 +14,6 @@ import TalkerCommonLogging
 import TalkerCommonSync
 import CryptoKit
 import AsyncAlgorithms
-import Semaphore
 
 
 fileprivate class EdgeConstants {
@@ -120,7 +119,7 @@ public final class EdgeStreamSynthesizerEngine: StreamSynthesizerEngine {
     }
 
     public func makeSession(text: String) async throws -> any StreamSynthesizerSession & Sendable {
-        try await borrowSemaphore.waitUnlessCancelled()
+        try await borrowSemaphore.wait()
         let sem = borrowSemaphore
         return EdgeStreamSynthesizerSession(
             text: text,

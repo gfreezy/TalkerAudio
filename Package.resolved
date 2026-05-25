@@ -1,5 +1,5 @@
 {
-  "originHash" : "ab9af994533446c286dc10aad7aca8f0a5f92715c462e9ea3b1a5ecc96e802c7",
+  "originHash" : "24af76155b15455c2e3b36d81720c08b04afe2025a610b569063102000a3ab95",
   "pins" : [
     {
       "identity" : "ogg-swift",
@@ -96,8 +96,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/gfreezy/talkercommon",
       "state" : {
-        "revision" : "acef9f0decc23d2cb321229e9d973333d9a3f1d4",
-        "version" : "20260505.0.3"
+        "revision" : "3036fee8dc211958ee64af4e87ea02b524e40b47",
+        "version" : "20260505.0.11"
       }
     },
     {

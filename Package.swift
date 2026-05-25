@@ -16,10 +16,9 @@ let package = Package(
             targets: ["TalkerAudio"])
     ],
     dependencies: [
-        .package(url: "https://github.com/gfreezy/talkercommon", from: "20260505.0.3"),
+        .package(url: "https://github.com/gfreezy/talkercommon", from: "20260505.0.11"),
         .package(url: "https://github.com/gfreezy/StreamAudioPlayer", from: "20260505.0.1"),
         .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
-        .package(url: "https://github.com/groue/Semaphore", from: "0.1.0"),
         .package(url: "https://github.com/apple/swift-testing", from: "0.1.0"),
         .package(url: "https://github.com/vector-im/opus-swift", from: "0.8.4"),
         .package(url: "https://github.com/vector-im/ogg-swift", from: "0.8.3"),
@@ -44,7 +43,6 @@ let package = Package(
                 .product(name: "TalkerCommonSync", package: "talkercommon"),
                 .product(name: "StreamAudio", package: "StreamAudioPlayer"),
                 .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
-                .product(name: "Semaphore", package: "Semaphore"),
                 .target(name: "MicrosoftCognitiveServicesSpeech"),
                 .product(name: "YbridOpus", package: "opus-swift"),
                 .product(name: "YbridOgg", package: "ogg-swift"),
