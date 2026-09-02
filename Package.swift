@@ -22,28 +22,29 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-testing", from: "0.1.0"),
         .package(url: "https://github.com/vector-im/opus-swift", from: "0.8.4"),
         .package(url: "https://github.com/vector-im/ogg-swift", from: "0.8.3"),
+        .package(url: "https://github.com/microsoft/speech-sdk-spm", from: "1.51.2"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "TalkerAudioObjC",
-            dependencies: ["MicrosoftCognitiveServicesSpeech"]
-        ),
-        .binaryTarget(
-            name: "MicrosoftCognitiveServicesSpeech",
-            path: "Frameworks/MicrosoftCognitiveServicesSpeech.xcframework"
-        ),
-        .target(
             name: "TalkerAudio",
             dependencies: [
-                "TalkerAudioObjC",
                 .product(name: "TalkerCommonLogging", package: "talkercommon"),
                 .product(name: "TalkerCommonError", package: "talkercommon"),
                 .product(name: "TalkerCommonSync", package: "talkercommon"),
                 .product(name: "StreamAudio", package: "StreamAudioPlayer"),
                 .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
-                .target(name: "MicrosoftCognitiveServicesSpeech"),
+                .product(
+                    name: "MicrosoftCognitiveServicesSpeech-iOS",
+                    package: "speech-sdk-spm",
+                    condition: .when(platforms: [.iOS])
+                ),
+                .product(
+                    name: "MicrosoftCognitiveServicesSpeech-macOS",
+                    package: "speech-sdk-spm",
+                    condition: .when(platforms: [.macOS])
+                ),
                 .product(name: "YbridOpus", package: "opus-swift"),
                 .product(name: "YbridOgg", package: "ogg-swift"),
             ]

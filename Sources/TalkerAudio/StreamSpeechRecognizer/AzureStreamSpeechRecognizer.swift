@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import TalkerAudioObjC
+import MicrosoftCognitiveServicesSpeech
 import TalkerCommonLogging
 import TalkerCommonSync
 

@@ -8,7 +8,7 @@ import AudioToolbox
 import OSLog
 import StreamAudio
 import SwiftUI
-import TalkerAudioObjC
+import MicrosoftCognitiveServicesSpeech
 import TalkerCommonLogging
 import AsyncAlgorithms
 import TalkerCommonSync
