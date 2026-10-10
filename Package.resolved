@@ -1,5 +1,5 @@
 {
-  "originHash" : "1c16338e7b896de7faf6178b73ac7851b5c230093d1e3dfe9eea18e3f482df51",
+  "originHash" : "07bf5a3d5c9e6f370ccc1a700bdb2b9428984e9da08982327f70d265bf5c8ef1",
   "pins" : [
     {
       "identity" : "ogg-swift",
@@ -52,7 +52,7 @@
       "location" : "https://github.com/gfreezy/StreamAudioPlayer",
       "state" : {
         "revision" : "a73fe046c0f3c9468fc15b342e0606c990eab70c",
-        "version" : "20261010.0.1"
+        "version" : "20260606.0.3"
       }
     },
     {
