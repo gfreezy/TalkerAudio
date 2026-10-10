@@ -82,7 +82,8 @@ public final class StreamSynthesizerPlayer: Sendable {
                 }
 
                 group.addTask { @Sendable in
-                    for await (text, session) in channel.buffer(policy: .bounded(5)) {
+                    var iterator = channel.buffer(policy: .bounded(5)).makeAsyncIterator()
+                    while let (text, session) = try await nextLegacyStreamElement(&iterator) {
                         try Task.checkCancellation()
                         self.allSessions.withLock { $0.append(session) }
                         infoLog("start play for: \(text)")
