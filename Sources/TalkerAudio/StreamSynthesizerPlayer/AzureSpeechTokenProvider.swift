@@ -19,17 +19,30 @@ public actor AzureSpeechTokenProvider {
     private let now: @Sendable () -> Date
     private var cached: AzureSpeechToken?
     private var inFlight: (id: UUID, task: Task<AzureSpeechToken, Error>)?
-    private let refreshMargin: TimeInterval = 60
+    private let refreshMargin: TimeInterval
 
     public init(loadToken: @escaping @Sendable () async throws -> AzureSpeechToken) {
         self.loadToken = loadToken
         self.now = { Date() }
+        self.refreshMargin = 3 * 60
+    }
+
+    /// Override the refresh window for issuers with a different lifetime or short-lived tests.
+    public init(refreshBeforeExpiry: TimeInterval,
+                loadToken: @escaping @Sendable () async throws -> AzureSpeechToken) {
+        precondition(refreshBeforeExpiry.isFinite && refreshBeforeExpiry >= 0)
+        self.loadToken = loadToken
+        self.now = { Date() }
+        self.refreshMargin = refreshBeforeExpiry
     }
 
     init(now: @escaping @Sendable () -> Date,
+         refreshBeforeExpiry: TimeInterval = 3 * 60,
          loadToken: @escaping @Sendable () async throws -> AzureSpeechToken) {
+        precondition(refreshBeforeExpiry.isFinite && refreshBeforeExpiry >= 0)
         self.now = now
         self.loadToken = loadToken
+        self.refreshMargin = refreshBeforeExpiry
     }
 
     public func token(forceRefresh: Bool = false) async throws -> AzureSpeechToken {

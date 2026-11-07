@@ -14,7 +14,7 @@ struct AzureSpeechTokenProviderTests {
                                     expiresAt: clock.withLock { $0 }.addingTimeInterval(600))
         }
         #expect(try await provider.token().token == "token-1")
-        clock.withLock { $0 += 539 }
+        clock.withLock { $0 += 419 }
         #expect(try await provider.token().token == "token-1")
         clock.withLock { $0 += 1 }
         #expect(try await provider.token().token == "token-2")
@@ -54,7 +54,7 @@ struct AzureSpeechTokenProviderTests {
                                     expiresAt: clock.withLock { $0 }.addingTimeInterval(600))
         }
         _ = try await provider.token()
-        clock.withLock { $0 += 550 }
+        clock.withLock { $0 += 430 }
         await #expect(throws: URLError.self) { try await provider.token() }
         #expect(try await provider.token().token == "token-3")
     }
@@ -66,5 +66,22 @@ struct AzureSpeechTokenProviderTests {
                              expiresAt: token.isEmpty ? Date().addingTimeInterval(600) : .distantPast)
         }
         await #expect(throws: AzureSpeechTokenError.self) { try await provider.token() }
+    }
+
+    @Test func supportsShortLivedTestCredentialsWithAnExplicitRefreshWindow() async throws {
+        let clock = TalkerCommonSync.Lock(Date(timeIntervalSince1970: 1_000))
+        let loads = TalkerCommonSync.Lock(0)
+        let provider = AzureSpeechTokenProvider(now: { clock.withLock { $0 } },
+                                               refreshBeforeExpiry: 5) {
+            let count = loads.withLock { $0 += 1; return $0 }
+            return AzureSpeechToken(token: "token-\(count)", region: "southeastasia",
+                                    expiresAt: clock.withLock { $0 }.addingTimeInterval(65))
+        }
+        #expect(try await provider.token().token == "token-1")
+        clock.withLock { $0 += 59 }
+        #expect(try await provider.token().token == "token-1")
+        clock.withLock { $0 += 1 }
+        #expect(try await provider.token().token == "token-2")
+        #expect(loads.withLock { $0 } == 2)
     }
 }
