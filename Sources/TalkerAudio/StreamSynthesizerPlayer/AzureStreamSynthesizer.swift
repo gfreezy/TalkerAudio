@@ -27,8 +27,7 @@ enum StreamSynthesizerError: String, LocalizedError {
 /// `@unchecked Sendable` because `SPXSpeechSynthesizer`/`SPXConnection` are
 /// Obj-C SDK types not declared Sendable. Our own state is fully synchronized:
 /// `currentSession` is a `Lock<...>` slot, `borrowSemaphore` is an actor, the
-/// SDK objects are `let` and never reassigned (shutdown only calls
-/// `stopSpeaking`; the SDK objects are released when the engine is dropped).
+/// SDK state is protected by `sdkState`; token refreshes happen between borrows.
 /// SDK callbacks capture the `Lock` and `AsyncSemaphore` directly, not `self`.
 public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unchecked Sendable {
 
@@ -36,8 +35,14 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
     private let style: String
     private let role: String
 
-    private let speechSynthesizer: SPXSpeechSynthesizer?
-    private let synthesizerConnection: SPXConnection?
+    private struct SDKState {
+        let synthesizer: SPXSpeechSynthesizer
+        let connection: SPXConnection
+        let region: String
+    }
+    private let sdkState = Lock<SDKState?>(nil)
+    private let isShutdown = Lock(false)
+    private let tokenProvider: AzureSpeechTokenProvider?
     private let currentSession: Lock<AzureStreamSynthesizerSession?>
     private let borrowSemaphore: AsyncSemaphore
     /// True between `makeSession` acquiring the semaphore and the next
@@ -47,86 +52,117 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
     /// the first one signals the semaphore.
     private let borrowHeld: Lock<Bool>
 
-    public init(voiceId: String, style: String, role: String, sub: String, region: String) {
-        infoLog("[azure-engine-reuse] init voiceId=\(voiceId) style=\(style) role=\(role)")
+    /// Existing subscription-key API remains available for trusted callers.
+    public convenience init(voiceId: String, style: String, role: String, sub: String, region: String) {
+        self.init(voiceId: voiceId, style: style, role: role, credentialProvider: nil)
+        do {
+            let configuration = try SPXSpeechConfiguration(subscription: sub, region: region)
+            try sdkState.withLock { $0 = try makeSDK(configuration: configuration, region: region) }
+        } catch {
+            errorLog("setup error: \(error)")
+        }
+    }
+
+    /// Credentials are loaded lazily and refreshed before an utterance needs them.
+    public convenience init(voiceId: String, style: String, role: String,
+                            tokenProvider: AzureSpeechTokenProvider) {
+        self.init(voiceId: voiceId, style: style, role: role, credentialProvider: tokenProvider)
+    }
+
+    private init(voiceId: String, style: String, role: String,
+                 credentialProvider: AzureSpeechTokenProvider?) {
         self.voiceId = voiceId
         self.style = style
         self.role = role
-        let currentSession = Lock<AzureStreamSynthesizerSession?>(nil)
-        let borrowSemaphore = AsyncSemaphore(value: 1)
-        let borrowHeld = Lock(false)
+        self.tokenProvider = credentialProvider
+        self.currentSession = Lock(nil)
+        self.borrowSemaphore = AsyncSemaphore(value: 1)
+        self.borrowHeld = Lock(false)
+    }
+
+    private func makeSDK(configuration: SPXSpeechConfiguration, region: String) throws -> SDKState {
+        let currentSession = self.currentSession
+        let borrowSemaphore = self.borrowSemaphore
+        let borrowHeld = self.borrowHeld
         let releaseBorrow: @Sendable () -> Void = {
-            let shouldSignal = borrowHeld.withLock { v -> Bool in
-                guard v else { return false }
-                v = false
+            let shouldSignal = borrowHeld.withLock { value -> Bool in
+                guard value else { return false }
+                value = false
                 return true
             }
             if shouldSignal { borrowSemaphore.signal() }
         }
-        self.currentSession = currentSession
-        self.borrowSemaphore = borrowSemaphore
-        self.borrowHeld = borrowHeld
-
-        var synth: SPXSpeechSynthesizer? = nil
-        var conn: SPXConnection? = nil
-        do {
-            let speechConfig = try SPXSpeechConfiguration(subscription: sub, region: region)
-            speechConfig.setSpeechSynthesisOutputFormat(.audio16Khz32KBitRateMonoMp3)
-            // Capture the Lock, Semaphore, and releaseBorrow closure — never
-            // `self` — so the SDK callbacks don't pull a non-Sendable type
-            // into a non-isolated context. (They run on internal SDK threads.)
-            let writeHandler: (Data) -> UInt = { data in
-                if let session = currentSession.withLock({ $0 }) {
-                    session.feed(data: data)
-                }
-                return UInt(data.count)
+        configuration.setSpeechSynthesisOutputFormat(.audio16Khz32KBitRateMonoMp3)
+        // Capture the Lock, Semaphore, and releaseBorrow closure — never
+        // `self` — so the SDK callbacks don't pull a non-Sendable type
+        // into a non-isolated context. (They run on internal SDK threads.)
+        let writeHandler: (Data) -> UInt = { data in
+            if let session = currentSession.withLock({ $0 }) {
+                session.feed(data: data)
             }
-            let audioOutputStream = SPXPushAudioOutputStream(
-                writeHandler: writeHandler, closeHandler: {})
-            let audioConfiguration = try SPXAudioConfiguration(streamOutput: audioOutputStream!)
-            let speechSynthesizer = try SPXSpeechSynthesizer(
-                speechConfiguration: speechConfig, audioConfiguration: audioConfiguration)
-            speechSynthesizer.addSynthesisCompletedEventHandler({ _synth, arg in
-                infoLog("finish load for result: \(arg.result.resultId)")
-                let session = currentSession.withLock { slot -> AzureStreamSynthesizerSession? in
-                    let value = slot
-                    slot = nil
-                    return value
-                }
-                session?.finishLoad()
-                releaseBorrow()
-            })
-            speechSynthesizer.addSynthesisCanceledEventHandler({ _synth, arg in
-                let cancellationDetails: SPXSpeechSynthesisCancellationDetails?
-                do {
-                    cancellationDetails = try SPXSpeechSynthesisCancellationDetails(
-                        fromCanceledSynthesisResult: arg.result)
-                    debugLog(
-                        "cancelled, error code: \(String(describing: cancellationDetails?.errorCode)), detail: \(String(describing: cancellationDetails?.errorDetails))"
-                    )
-                } catch {
-                    cancellationDetails = nil
-                    errorLog("\(error)")
-                }
-                infoLog("cancel speaking for result: \(arg.result.resultId)")
-                let session = currentSession.withLock { slot -> AzureStreamSynthesizerSession? in
-                    let value = slot
-                    slot = nil
-                    return value
-                }
-                session?.cancelLoad(error: StreamSynthesizerError.synthesizeCancelled)
-                releaseBorrow()
-            })
-            let connection = try SPXConnection(from: speechSynthesizer)
-            connection.open(true)
-            synth = speechSynthesizer
-            conn = connection
-        } catch {
-            errorLog("setup error: \(error)")
+            return UInt(data.count)
         }
+        let audioOutputStream = SPXPushAudioOutputStream(
+            writeHandler: writeHandler, closeHandler: {})
+        let audioConfiguration = try SPXAudioConfiguration(streamOutput: audioOutputStream!)
+        let speechSynthesizer = try SPXSpeechSynthesizer(
+            speechConfiguration: configuration, audioConfiguration: audioConfiguration)
+        speechSynthesizer.addSynthesisCompletedEventHandler({ _synth, arg in
+            infoLog("finish load for result: \(arg.result.resultId)")
+            let session = currentSession.withLock { slot -> AzureStreamSynthesizerSession? in
+                let value = slot
+                slot = nil
+                return value
+            }
+            if let session {
+                session.finishLoad()
+                releaseBorrow()
+            }
+        })
+        speechSynthesizer.addSynthesisCanceledEventHandler({ _synth, arg in
+            let cancellationDetails: SPXSpeechSynthesisCancellationDetails?
+            do {
+                cancellationDetails = try SPXSpeechSynthesisCancellationDetails(
+                    fromCanceledSynthesisResult: arg.result)
+                debugLog(
+                    "cancelled, error code: \(String(describing: cancellationDetails?.errorCode)), detail: \(String(describing: cancellationDetails?.errorDetails))"
+                )
+            } catch {
+                cancellationDetails = nil
+                errorLog("\(error)")
+            }
+            infoLog("cancel speaking for result: \(arg.result.resultId)")
+            let session = currentSession.withLock { slot -> AzureStreamSynthesizerSession? in
+                let value = slot
+                slot = nil
+                return value
+            }
+            if let session {
+                session.cancelLoad(error: StreamSynthesizerError.synthesizeCancelled)
+                releaseBorrow()
+            }
+        })
+        let connection = try SPXConnection(from: speechSynthesizer)
+        connection.open(true)
+        return SDKState(synthesizer: speechSynthesizer, connection: connection, region: region)
+    }
 
-        self.speechSynthesizer = synth
-        self.synthesizerConnection = conn
+    private func refreshAuthorizationIfNeeded() async throws {
+        guard let tokenProvider else { return }
+        let credential = try await tokenProvider.token()
+        try Task.checkCancellation()
+        guard !isShutdown.withLock({ $0 }) else { throw CancellationError() }
+        try sdkState.withLock { state in
+            guard !isShutdown.withLock({ $0 }) else { throw CancellationError() }
+            if let existing = state, existing.region == credential.region {
+                // SpeechConfiguration is copied by the SDK, so refresh the live synthesizer.
+                existing.synthesizer.authorizationToken = credential.token
+            } else {
+                let configuration = try SPXSpeechConfiguration(
+                    authorizationToken: credential.token, region: credential.region)
+                state = try makeSDK(configuration: configuration, region: credential.region)
+            }
+        }
     }
 
     public func makeSession(text: String) async throws -> any StreamSynthesizerSession & Sendable {
@@ -136,6 +172,9 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
         // SDK callback) is idempotent.
         borrowHeld.withLock { $0 = true }
         do {
+            try Task.checkCancellation()
+            guard !isShutdown.withLock({ $0 }) else { throw CancellationError() }
+            try await refreshAuthorizationIfNeeded()
             return try installAndStart(text: text)
         } catch {
             releaseBorrow()
@@ -153,30 +192,33 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
     }
 
     private func installAndStart(text: String) throws -> AzureStreamSynthesizerSession {
-        guard let speechSynthesizer = speechSynthesizer else {
-            throw StreamSynthesizerError.engineNotReady
-        }
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            .trimmingCharacters(in: .punctuationCharacters)
-        let ssml = buildSsmlText(text: trimmed)
-        let session = AzureStreamSynthesizerSession(
-            text: trimmed, voiceId: voiceId, engine: self)
-        currentSession.withLock { $0 = session }
-        do {
-            let result = try speechSynthesizer.startSpeakingSsml(ssml)
-            if result.reason == SPXResultReason.canceled {
-                let cancellationDetails = try SPXSpeechSynthesisCancellationDetails(
-                    fromCanceledSynthesisResult: result)
-                errorLog(
-                    "cancelled, error code: \(cancellationDetails.errorCode.rawValue) detail: \(cancellationDetails.errorDetails!) "
-                )
-                currentSession.withLock { $0 = nil }
-                throw StreamSynthesizerError.synthesizeCancelled
+        return try sdkState.withLock { state in
+            guard !isShutdown.withLock({ $0 }),
+                  let speechSynthesizer = state?.synthesizer else {
+                throw StreamSynthesizerError.engineNotReady
             }
-            return session
-        } catch {
-            currentSession.withLock { $0 = nil }
-            throw error
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: .punctuationCharacters)
+            let ssml = buildSsmlText(text: trimmed)
+            let session = AzureStreamSynthesizerSession(
+                text: trimmed, voiceId: voiceId, engine: self)
+            currentSession.withLock { $0 = session }
+            do {
+                let result = try speechSynthesizer.startSpeakingSsml(ssml)
+                if result.reason == SPXResultReason.canceled {
+                    let cancellationDetails = try SPXSpeechSynthesisCancellationDetails(
+                        fromCanceledSynthesisResult: result)
+                    errorLog(
+                        "cancelled, error code: \(cancellationDetails.errorCode.rawValue) detail: \(cancellationDetails.errorDetails!) "
+                    )
+                    currentSession.withLock { $0 = nil }
+                    throw StreamSynthesizerError.synthesizeCancelled
+                }
+                return session
+            } catch {
+                currentSession.withLock { $0 = nil }
+                throw error
+            }
         }
     }
 
@@ -200,17 +242,17 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
     func stopCurrent(session: AzureStreamSynthesizerSession) {
         let isCurrent = currentSession.withLock { $0 === session }
         guard isCurrent else { return }
-        try? speechSynthesizer?.stopSpeaking()
+        try? sdkState.withLock({ $0?.synthesizer })?.stopSpeaking()
     }
 
     public func shutdown() {
         infoLog("[azure-engine-reuse] shutdown voiceId=\(voiceId)")
-        try? speechSynthesizer?.stopSpeaking()
-        // SDK objects are `let`; they are released when this engine is deinit'd.
+        isShutdown.withLock { $0 = true }
+        try? sdkState.withLock({ $0?.synthesizer })?.stopSpeaking()
     }
 
     func listVoice() throws -> [SPXVoiceInfo] {
-        guard let speechSynthesizer else {
+        guard let speechSynthesizer = sdkState.withLock({ $0?.synthesizer }) else {
             throw StreamSynthesizerError.speechSynthesizerNotExist
         }
         let result = try speechSynthesizer.getVoices()
