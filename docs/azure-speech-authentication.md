@@ -27,7 +27,17 @@ let engine = AzureStreamSynthesizerEngine(
     voiceId: voiceID, style: style, role: role,
     tokenProvider: provider
 )
+
+// Run before the first utterance, for example while preparing a conversation.
+try await engine.warmUp()
 ```
+
+`warmUp()` fetches a credential, initializes the SDK and opens its reusable
+connection without synthesizing or playing audio. It shares the engine's borrow
+with synthesis so it cannot change credentials during an active utterance.
+Applications can run it in a background task, cancel that task when replacing
+the engine, and log preparation failures without blocking navigation. A later
+utterance retries credential loading normally if preparation failed.
 
 The provider caches credentials and coalesces concurrent requests. Before each
 utterance, the engine obtains a credential from the provider, which reloads it

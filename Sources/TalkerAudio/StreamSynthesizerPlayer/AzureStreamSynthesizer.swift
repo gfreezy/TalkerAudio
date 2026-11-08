@@ -63,7 +63,8 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
         }
     }
 
-    /// Credentials are loaded lazily and refreshed before an utterance needs them.
+    /// Call `warmUp()` to prepare credentials and open the reusable connection early.
+    /// Every utterance still checks whether its credential needs refreshing.
     public convenience init(voiceId: String, style: String, role: String,
                             tokenProvider: AzureSpeechTokenProvider) {
         self.init(voiceId: voiceId, style: style, role: role, credentialProvider: tokenProvider)
@@ -163,6 +164,16 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
                 state = try makeSDK(configuration: configuration, region: credential.region)
             }
         }
+    }
+
+    public func warmUp() async throws {
+        // Share the synthesis borrow so preparation never updates SDK credentials
+        // while an utterance is using them. No speech or audio cache is created.
+        try await borrowSemaphore.wait()
+        defer { borrowSemaphore.signal() }
+        try Task.checkCancellation()
+        guard !isShutdown.withLock({ $0 }) else { throw CancellationError() }
+        try await refreshAuthorizationIfNeeded()
     }
 
     public func makeSession(text: String) async throws -> any StreamSynthesizerSession & Sendable {
