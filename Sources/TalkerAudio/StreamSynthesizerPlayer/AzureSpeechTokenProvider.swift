@@ -1,4 +1,5 @@
 import Foundation
+import TalkerCommonSync
 
 /// A short-lived Azure Speech credential issued by your backend.
 public struct AzureSpeechToken: Sendable {
@@ -17,7 +18,7 @@ public struct AzureSpeechToken: Sendable {
 public actor AzureSpeechTokenProvider {
     private let loadToken: @Sendable () async throws -> AzureSpeechToken
     private let now: @Sendable () -> Date
-    private var cached: AzureSpeechToken?
+    private nonisolated let cached = Lock<AzureSpeechToken?>(nil)
     private var inFlight: (id: UUID, task: Task<AzureSpeechToken, Error>)?
     private let refreshMargin: TimeInterval
 
@@ -45,11 +46,20 @@ public actor AzureSpeechTokenProvider {
         self.refreshMargin = refreshBeforeExpiry
     }
 
+    /// A fresh snapshot lets engine initialization start preconnecting inline,
+    /// without waiting for an actor hop or starting a credential request.
+    nonisolated func cachedToken() -> AzureSpeechToken? {
+        cached.withLock { credential in
+            guard let credential, credential.expiresAt.timeIntervalSince(now()) > refreshMargin else {
+                return nil
+            }
+            return credential
+        }
+    }
+
     public func token(forceRefresh: Bool = false) async throws -> AzureSpeechToken {
         try Task.checkCancellation()
-        if !forceRefresh, let cached, cached.expiresAt.timeIntervalSince(now()) > refreshMargin {
-            return cached
-        }
+        if !forceRefresh, let credential = cachedToken() { return credential }
 
         let pending: (id: UUID, task: Task<AzureSpeechToken, Error>)
         if let inFlight {
@@ -72,7 +82,7 @@ public actor AzureSpeechTokenProvider {
         do {
             let token = try await pending.task.value
             if inFlight?.id == pending.id {
-                cached = token
+                cached.withLock { $0 = token }
                 inFlight = nil
             }
             try Task.checkCancellation()

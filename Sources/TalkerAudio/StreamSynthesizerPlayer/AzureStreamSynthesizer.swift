@@ -39,6 +39,7 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
         let synthesizer: SPXSpeechSynthesizer
         let connection: SPXConnection
         let region: String
+        var authorizationToken: String?
     }
     private let sdkState = Lock<SDKState?>(nil)
     private let isShutdown = Lock(false)
@@ -68,6 +69,21 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
     public convenience init(voiceId: String, style: String, role: String,
                             tokenProvider: AzureSpeechTokenProvider) {
         self.init(voiceId: voiceId, style: style, role: role, credentialProvider: tokenProvider)
+        // Match the subscription-key path: a prefetched credential can initialize
+        // the SDK and start its connection before this initializer returns.
+        if let credential = tokenProvider.cachedToken() {
+            do {
+                let configuration = try SPXSpeechConfiguration(
+                    authorizationToken: credential.token, region: credential.region)
+                try sdkState.withLock {
+                    $0 = try makeSDK(configuration: configuration, region: credential.region,
+                                    authorizationToken: credential.token)
+                }
+                debugLog("[tts-warmup] cached credential prepared inline")
+            } catch {
+                errorLog("speech preconnection setup failed: \(error)")
+            }
+        }
     }
 
     private init(voiceId: String, style: String, role: String,
@@ -81,7 +97,8 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
         self.borrowHeld = Lock(false)
     }
 
-    private func makeSDK(configuration: SPXSpeechConfiguration, region: String) throws -> SDKState {
+    private func makeSDK(configuration: SPXSpeechConfiguration, region: String,
+                         authorizationToken: String? = nil) throws -> SDKState {
         let currentSession = self.currentSession
         let borrowSemaphore = self.borrowSemaphore
         let borrowHeld = self.borrowHeld
@@ -144,24 +161,40 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
             }
         })
         let connection = try SPXConnection(from: speechSynthesizer)
+        let connectionStartedAt = ProcessInfo.processInfo.systemUptime
+        connection.addConnectedEventHandler { _, _ in
+            let elapsedMs = Int((ProcessInfo.processInfo.systemUptime - connectionStartedAt) * 1000)
+            debugLog("[tts-warmup] connection established elapsedMs=\(elapsedMs)")
+        }
+        debugLog("[tts-warmup] connection opening")
         connection.open(true)
-        return SDKState(synthesizer: speechSynthesizer, connection: connection, region: region)
+        return SDKState(synthesizer: speechSynthesizer, connection: connection, region: region,
+                        authorizationToken: authorizationToken)
     }
 
     private func refreshAuthorizationIfNeeded() async throws {
         guard let tokenProvider else { return }
-        let credential = try await tokenProvider.token()
+        let credential: AzureSpeechToken
+        if let cached = tokenProvider.cachedToken() {
+            credential = cached
+        } else {
+            credential = try await tokenProvider.token()
+        }
         try Task.checkCancellation()
         guard !isShutdown.withLock({ $0 }) else { throw CancellationError() }
         try sdkState.withLock { state in
             guard !isShutdown.withLock({ $0 }) else { throw CancellationError() }
-            if let existing = state, existing.region == credential.region {
+            if var existing = state, existing.region == credential.region {
+                guard existing.authorizationToken != credential.token else { return }
                 // SpeechConfiguration is copied by the SDK, so refresh the live synthesizer.
                 existing.synthesizer.authorizationToken = credential.token
+                existing.authorizationToken = credential.token
+                state = existing
             } else {
                 let configuration = try SPXSpeechConfiguration(
                     authorizationToken: credential.token, region: credential.region)
-                state = try makeSDK(configuration: configuration, region: credential.region)
+                state = try makeSDK(configuration: configuration, region: credential.region,
+                                    authorizationToken: credential.token)
             }
         }
     }

@@ -39,6 +39,14 @@ Applications can run it in a background task, cancel that task when replacing
 the engine, and log preparation failures without blocking navigation. A later
 utterance retries credential loading normally if preparation failed.
 
+For first-utterance latency, fetch `provider.token()` earlier, such as at app
+launch or foreground entry. Engine initialization uses a fresh cached credential
+to initialize the SDK and open its connection synchronously, matching the
+subscription-key initializer. Starting an asynchronous warm-up immediately before
+speaking does not provide the same lead time if it still has to fetch a token.
+Repeated warm-up and synthesis reuse the applied credential; the SDK token setter
+is only called after that credential changes.
+
 The provider caches credentials and coalesces concurrent requests. Before each
 utterance, the engine obtains a credential from the provider, which reloads it
 when it has at most three minutes left. The engine updates the live SDK

@@ -5,6 +5,26 @@ import Testing
 @testable import TalkerAudio
 
 struct AzureSpeechTokenProviderTests {
+    @Test func prefetchedCredentialIsSynchronouslyAvailableOnlyWhileFresh() async throws {
+        let clock = TalkerCommonSync.Lock(Date(timeIntervalSince1970: 1_000))
+        let loads = TalkerCommonSync.Lock(0)
+        let provider = AzureSpeechTokenProvider(now: { clock.withLock { $0 } }) {
+            let count = loads.withLock { $0 += 1; return $0 }
+            return AzureSpeechToken(token: "token-\(count)", region: "southeastasia",
+                                    expiresAt: clock.withLock { $0 }.addingTimeInterval(600))
+        }
+        #expect(provider.cachedToken() == nil)
+        _ = try await provider.token()
+        #expect(provider.cachedToken()?.token == "token-1")
+        clock.withLock { $0 += 419 }
+        #expect(provider.cachedToken()?.token == "token-1")
+        clock.withLock { $0 += 1 }
+        #expect(provider.cachedToken() == nil)
+        _ = try await provider.token()
+        #expect(provider.cachedToken()?.token == "token-2")
+        #expect(loads.withLock { $0 } == 2)
+    }
+
     @Test func cachesAndRefreshesBeforeExpiry() async throws {
         let clock = TalkerCommonSync.Lock(Date(timeIntervalSince1970: 1_000))
         let loads = TalkerCommonSync.Lock(0)
