@@ -14,9 +14,6 @@ import Foundation
 /// borrow. Once `session.waitForLoadFinished` resolves, the engine is free
 /// again and the session may continue independently (`play`, `cachePath`).
 public protocol StreamSynthesizerEngine: Sendable {
-    /// Prepare credentials and reusable connections without synthesizing audio.
-    func warmUp() async throws
-
     /// Borrow the engine and start synthesizing `text`. Suspends if the engine
     /// is currently borrowed by another session.
     func makeSession(text: String) async throws -> any StreamSynthesizerSession & Sendable
@@ -25,13 +22,6 @@ public protocol StreamSynthesizerEngine: Sendable {
     /// Engines outlive a single `streamSynthesize` call; the caller decides
     /// when to shut down.
     func shutdown()
-}
-
-public extension StreamSynthesizerEngine {
-    /// Engines that are ready after initialization need no additional preparation.
-    func warmUp() async throws {
-        try Task.checkCancellation()
-    }
 }
 
 /// One synthesis utterance. Holds the per-text audio cache file and signals

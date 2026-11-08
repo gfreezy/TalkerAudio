@@ -28,23 +28,30 @@ let engine = AzureStreamSynthesizerEngine(
     tokenProvider: provider
 )
 
-// Run before the first utterance, for example while preparing a conversation.
-try await engine.warmUp()
+// Construction starts preconnection; no separate engine warm-up call is needed.
 ```
 
-`warmUp()` fetches a credential, initializes the SDK and opens its reusable
-connection without synthesizing or playing audio. It shares the engine's borrow
-with synthesis so it cannot change credentials during an active utterance.
-Applications can run it in a background task, cancel that task when replacing
-the engine, and log preparation failures without blocking navigation. A later
-utterance retries credential loading normally if preparation failed.
+The token-based initializer starts preparation immediately. With a fresh cached
+credential it initializes the SDK and opens its reusable connection inline.
+Without a usable credential it immediately starts an asynchronous token request,
+then initializes the SDK and opens the connection as soon as that request succeeds.
+Neither path needs a later speech call to trigger preparation.
+
+The first utterance joins that same initial preparation without
+synthesizing or playing extra audio. Cancelling one waiter does not cancel shared
+preparation; shutting down the engine does. Preparation failures are logged, and
+the first utterance retries normal credential loading. Subsequent updates share the
+engine's borrow with synthesis so credentials never change during an utterance.
+Applications can construct the engine before entering a conversation and shut
+it down when replacing or releasing the session. Preparation failures are logged
+without blocking navigation; a later utterance can retry credential loading.
 
 For first-utterance latency, fetch `provider.token()` earlier, such as at app
 launch or foreground entry. Engine initialization uses a fresh cached credential
 to initialize the SDK and open its connection synchronously, matching the
 subscription-key initializer. Starting an asynchronous warm-up immediately before
 speaking does not provide the same lead time if it still has to fetch a token.
-Repeated warm-up and synthesis reuse the applied credential; the SDK token setter
+Repeated synthesis reuses the applied credential; the SDK token setter
 is only called after that credential changes.
 
 The provider caches credentials and coalesces concurrent requests. Before each

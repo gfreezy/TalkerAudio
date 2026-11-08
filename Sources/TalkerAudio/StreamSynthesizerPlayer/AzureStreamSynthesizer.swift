@@ -42,6 +42,11 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
         var authorizationToken: String?
     }
     private let sdkState = Lock<SDKState?>(nil)
+    private struct InitialPreparation: Sendable {
+        let ready: OneShotChannel<Void>
+        let task: Task<Void, Never>
+    }
+    private let initialPreparation = Lock<InitialPreparation?>(nil)
     private let isShutdown = Lock(false)
     private let tokenProvider: AzureSpeechTokenProvider?
     private let currentSession: Lock<AzureStreamSynthesizerSession?>
@@ -64,8 +69,9 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
         }
     }
 
-    /// Call `warmUp()` to prepare credentials and open the reusable connection early.
-    /// Every utterance still checks whether its credential needs refreshing.
+    /// Starts preparing credentials and opening the reusable connection immediately.
+    /// Fresh cached credentials are applied inline; otherwise preparation continues
+    /// asynchronously without requiring a later makeSession() call.
     public convenience init(voiceId: String, style: String, role: String,
                             tokenProvider: AzureSpeechTokenProvider) {
         self.init(voiceId: voiceId, style: style, role: role, credentialProvider: tokenProvider)
@@ -73,17 +79,31 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
         // the SDK and start its connection before this initializer returns.
         if let credential = tokenProvider.cachedToken() {
             do {
-                let configuration = try SPXSpeechConfiguration(
-                    authorizationToken: credential.token, region: credential.region)
-                try sdkState.withLock {
-                    $0 = try makeSDK(configuration: configuration, region: credential.region,
-                                    authorizationToken: credential.token)
-                }
+                try applyCredential(credential)
                 debugLog("[tts-warmup] cached credential prepared inline")
+                return
             } catch {
                 errorLog("speech preconnection setup failed: \(error)")
             }
         }
+        let ready = OneShotChannel<Void>()
+        debugLog("[tts-warmup] initializer requesting credential")
+        let task = Task { [weak self] in
+            do {
+                let credential = try await tokenProvider.token()
+                try Task.checkCancellation()
+                guard let self else { throw CancellationError() }
+                try self.applyCredential(credential)
+                debugLog("[tts-warmup] initializer prepared connection")
+                ready.finish(())
+            } catch {
+                if !(error is CancellationError) {
+                    errorLog("speech initial preparation failed: \(error)")
+                }
+                ready.finish(throwing: error)
+            }
+        }
+        initialPreparation.withLock { $0 = InitialPreparation(ready: ready, task: task) }
     }
 
     private init(voiceId: String, style: String, role: String,
@@ -180,6 +200,10 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
         } else {
             credential = try await tokenProvider.token()
         }
+        try applyCredential(credential)
+    }
+
+    private func applyCredential(_ credential: AzureSpeechToken) throws {
         try Task.checkCancellation()
         guard !isShutdown.withLock({ $0 }) else { throw CancellationError() }
         try sdkState.withLock { state in
@@ -199,18 +223,28 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
         }
     }
 
-    public func warmUp() async throws {
-        // Share the synthesis borrow so preparation never updates SDK credentials
-        // while an utterance is using them. No speech or audio cache is created.
-        try await borrowSemaphore.wait()
-        defer { borrowSemaphore.signal() }
-        try Task.checkCancellation()
-        guard !isShutdown.withLock({ $0 }) else { throw CancellationError() }
-        try await refreshAuthorizationIfNeeded()
+    private func waitForInitialPreparation() async throws {
+        guard let preparation = initialPreparation.withLock({ $0 }) else { return }
+        defer {
+            // A cancelled waiter leaves the shared preparation running for other callers.
+            // Completed failures are removed so the next operation can retry normally.
+            if preparation.ready.isFinished {
+                initialPreparation.withLock { $0 = nil }
+            }
+        }
+        do {
+            try await preparation.ready.wait()
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            // The initializer already logged the failure. Let the first utterance
+            // retry normal credential loading instead of failing on an earlier attempt.
+        }
     }
 
     public func makeSession(text: String) async throws -> any StreamSynthesizerSession & Sendable {
         infoLog("[azure-engine-reuse] makeSession voiceId=\(voiceId) text.count=\(text.count)")
+        try await waitForInitialPreparation()
         try await borrowSemaphore.wait()
         // Mark the borrow held so any release path (the catch below or the
         // SDK callback) is idempotent.
@@ -292,6 +326,10 @@ public final class AzureStreamSynthesizerEngine: StreamSynthesizerEngine, @unche
     public func shutdown() {
         infoLog("[azure-engine-reuse] shutdown voiceId=\(voiceId)")
         isShutdown.withLock { $0 = true }
+        if let preparation = initialPreparation.withLock({ $0 }) {
+            preparation.task.cancel()
+            preparation.ready.finish(throwing: CancellationError())
+        }
         try? sdkState.withLock({ $0?.synthesizer })?.stopSpeaking()
     }
 
